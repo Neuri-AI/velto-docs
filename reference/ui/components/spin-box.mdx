@@ -1,0 +1,16 @@
+---
+title: SpinBox
+description: Render a controlled numeric input.
+---
+
+```python
+from velto.ui import SpinBox
+```
+
+`SpinBox(value=0, min=0, max=100, step=1, decimals=0, enabled=True, on_change=None, key=None, ref=None, **props)` has no children.
+
+```python
+SpinBox(value=estimate, min=0, max=40, step=1, on_change=set_estimate)
+```
+
+Precision and keyboard behavior are supplied by each native backend.

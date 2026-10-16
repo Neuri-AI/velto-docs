@@ -1,0 +1,16 @@
+---
+title: RadioGroup
+description: Coordinate `Radio` options as a controlled selection.
+---
+
+```python
+from velto.ui import RadioGroup
+```
+
+`RadioGroup(*children, value=None, on_change=None, orientation="vertical", spacing=0, padding=0, enabled=True, key=None, ref=None, **props)` accepts `Radio` children.
+
+```python
+RadioGroup(Radio("all", label="All"), Radio("open", label="Open"), value=filter, on_change=set_filter)
+```
+
+`on_change` receives the selected option value.

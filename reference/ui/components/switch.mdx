@@ -1,0 +1,16 @@
+---
+title: Switch
+description: Render a boolean switch control.
+---
+
+```python
+from velto.ui import Switch
+```
+
+`Switch(checked=False, enabled=True, label="", size="medium", color="#16A34A", on_change=None, key=None, ref=None, **props)` has no children.
+
+```python
+Switch(checked=show_done, label="Show completed", on_change=set_show_done)
+```
+
+`on_change` receives the new boolean value. Size and color support vary across renderers.

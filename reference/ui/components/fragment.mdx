@@ -1,0 +1,16 @@
+---
+title: Fragment
+description: Group children without an extra layout component.
+---
+
+```python
+from velto.ui import Fragment
+```
+
+`Fragment(*children, key=None)` accepts multiple children and does not create a native widget. In PSX Markup, use `<>...</>`.
+
+```python
+Fragment(Text("One"), Text("Two"), key="summary")
+```
+
+Use a key when a fragment is produced in a dynamic list. See [fragments](/markup/fragments).

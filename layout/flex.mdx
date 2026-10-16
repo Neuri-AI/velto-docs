@@ -1,0 +1,102 @@
+---
+title: "Flex layout"
+description: "Arrange native widgets in rows and columns with spacing and alignment."
+---
+
+Use `Flex` when your interface needs an ordered row or column of widgets. It is the default starting point for forms, toolbars, sidebars, and vertically stacked screens.
+
+## Stack content vertically
+
+```python
+from velto.ui import component, psx
+
+@component
+def SettingsPanel():
+    return psx("""
+        <Flex direction="column" gap="12px" padding="16px">
+            <Text font_size="20" bold={True}>Settings</Text>
+            <Input placeholder="Display name" />
+            <Button label="Save changes" />
+        </Flex>
+    """)
+```
+
+`direction="column"` uses the vertical axis for child placement. `gap` separates adjacent children, and `padding` keeps the content away from the container edge.
+
+## Arrange a horizontal toolbar
+
+```python
+@component
+def Toolbar():
+    return psx("""
+        <Flex direction="row" gap="8px" align_items="center">
+            <Button label="Back" />
+            <Text>Documents</Text>
+            <Button label="New" />
+        </Flex>
+    """)
+```
+
+The default direction is `row`, but writing it explicitly can make the intended arrangement easier to read.
+
+## Understand the two axes
+
+The **main axis** follows `direction`; the **cross axis** is perpendicular to it.
+
+| Property | Purpose |
+| --- | --- |
+| `direction` | Choose `row`, `column`, or a supported reverse direction |
+| `justify_content` | Distribute children along the main axis |
+| `align_items` | Align children along the cross axis |
+| `align_content` | Align multiple lines when wrapping applies |
+| `wrap` | Control whether items may wrap |
+| `gap` | Set spacing between adjacent items |
+| `row_gap`, `column_gap` | Override spacing by axis |
+| `padding` | Create inner space around the children |
+
+For example, a horizontal row with `justify_content="center"` centers the group along the horizontal axis, whereas `align_items="center"` aligns the children vertically.
+
+## Nest Flex containers
+
+Nested containers let you express larger layouts without absolute coordinates.
+
+```python
+@component
+def DashboardHeader():
+    return psx("""
+        <Flex direction="column" gap="16px">
+            <Text font_size="22">Dashboard</Text>
+            <Flex direction="row" gap="8px" align_items="center">
+                <Button label="Overview" />
+                <Button label="Activity" />
+                <Button label="Settings" />
+            </Flex>
+        </Flex>
+    """)
+```
+
+## Control an individual child
+
+Shared layout-item properties can be placed on supported child components. For example, `align_self` overrides the container's cross-axis alignment for that item.
+
+```python
+@component
+def Actions():
+    return psx("""
+        <Flex direction="column" gap="8px" align_items="stretch">
+            <Text>Changes are not saved yet.</Text>
+            <Button label="Save" align_self="flex-end" />
+        </Flex>
+    """)
+```
+
+Do not assume every widget has a `width` property: ordinary controls use `layout_width` and related layout-item properties. See [Sizing, spacing, and alignment](/layout/sizing-spacing-and-alignment).
+
+## Common mistakes
+
+- Using `gap` to create outer space: use container `padding` or supported child margins instead.
+- Confusing `justify_content` with `align_items`: their effect changes when `direction` changes.
+- Copying browser CSS property names into markup: use the PSX property names with underscores.
+- Assuming wrapping or intrinsic sizing behaves identically on all native renderers: test the target backend.
+
+For the full property contract, see [Flex component reference](/reference/ui/components/flex).

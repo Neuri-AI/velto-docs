@@ -1,0 +1,88 @@
+---
+title: "Containers and scrolling"
+description: "Group content, add scrolling, and choose the right structural components."
+---
+
+Containers help you arrange and organize UI elements. They are not interchangeable: some control layout, some provide scrolling, and some group virtual nodes without creating a layout widget.
+
+## Start with Flex
+
+`Flex` is the default choice for arranging a small group of elements in a row or column.
+
+```python
+from velto.ui import component, psx
+
+@component
+def SummaryPanel():
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Account</Text>
+            <Text>Manage your profile and preferences.</Text>
+            <Button>Edit profile</Button>
+        </Flex>
+    """)
+```
+
+The `direction` prop determines the main axis; `gap` separates items. For alignment, sizing, wrapping, and nested layouts, see [Flex layout](/layout/flex).
+
+## Make longer content scrollable
+
+Use `Scroll` when content may extend beyond the available viewing area.
+
+```python
+from velto.ui import component, psx
+
+@component
+def HelpTopics():
+    return psx("""
+        <Scroll direction="vertical" height="320px">
+            <Flex direction="column" gap="12px">
+                <Text>Getting started</Text>
+                <Text>Managing your account</Text>
+                <Text>Privacy and security</Text>
+                <Text>Keyboard shortcuts</Text>
+                <Text>Contacting support</Text>
+            </Flex>
+        </Scroll>
+    """)
+```
+
+`Scroll` defines a scrollable region; the inner `Flex` arranges the content. The container needs a meaningful size constraint for overflow to be visible. The component also exposes `content_direction`, `scrollbar`, `spacing`, and `padding`; consult the [Scroll reference](/reference/ui/components/scroll) for supported values.
+
+## Choose a structural component
+
+| Component | Use it for |
+| --- | --- |
+| `Flex` | Row and column arrangements, wrapping, and alignment |
+| `Grid` | Structured layouts with rows and columns |
+| `GridItem` | An item placed inside a grid |
+| `Scroll` | A bounded region containing scrollable content |
+| `Spacer` | Flexible separation within a layout |
+| `Fragment` | Grouping virtual children without a native container |
+
+### When to use Grid
+
+Choose `Grid` when your design depends on explicit rows and columns rather than a simple flow. `GridItem` belongs inside a `Grid`. Because grid support and geometry behavior can vary by renderer, follow the [Grid layout guide](/layout/grid) and its current compatibility notes instead of assuming browser CSS Grid behavior.
+
+### When to use Fragment
+
+A fragment does not add padding, spacing, scrolling, or native layout behavior. It only groups children:
+
+```jsx
+<>
+    <Text>First</Text>
+    <Text>Second</Text>
+</>
+```
+
+If you need spacing between those elements, use `Flex` instead.
+
+## Avoid unnecessary nesting
+
+Start with one container and add another only when it has a clear responsibility. For example, `Scroll` handles overflow while an inner `Flex` handles the order and spacing of its children. Do not introduce extra containers solely to group nodes when a fragment is enough.
+
+## Component details
+
+[Flex](/reference/ui/components/flex) · [Grid](/reference/ui/components/grid) · [GridItem](/reference/ui/components/grid-item) · [Scroll](/reference/ui/components/scroll) · [Spacer](/reference/ui/components/spacer) · [Fragment](/reference/ui/components/fragment)
+
+Next: [Layout overview](/layout/overview).

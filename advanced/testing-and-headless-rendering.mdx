@@ -1,0 +1,6 @@
+---
+title: "Testing and Headless rendering"
+description: "Test declarative behavior without claiming native visual coverage."
+---
+
+`App(..., renderer="headless")` records a deterministic native-like tree for tests. Use it for component, event, key, and reconciliation behavior, then add native smoke tests for backend-specific claims.

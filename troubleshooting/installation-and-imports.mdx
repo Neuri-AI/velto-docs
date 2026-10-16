@@ -1,0 +1,17 @@
+---
+title: Installation and imports
+description: Resolve package and import setup issues.
+---
+
+Install the façade and import only its documented public paths:
+
+```bash
+python -m pip install velto
+```
+
+```python
+from velto import VeltoContext
+from velto.ui import App, Text
+```
+
+If an import fails, confirm the active virtual environment and inspect `python -m pip show velto`. Direct imports from `psx`, `pydux`, and `qyro` remain supported for projects that intentionally use those libraries.

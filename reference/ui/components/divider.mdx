@@ -1,0 +1,16 @@
+---
+title: Divider
+description: Separate adjacent content visually.
+---
+
+```python
+from velto.ui import Divider
+```
+
+`Divider(*children, orientation="horizontal", thickness=1, color=None, key=None, ref=None, **props)` creates a horizontal or vertical separator. Treat it as a leaf component; child rendering is not a portable composition contract.
+
+```python
+Divider(orientation="horizontal", thickness=1)
+```
+
+Color and exact pixel measurement depend on the renderer.

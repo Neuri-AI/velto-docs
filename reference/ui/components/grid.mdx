@@ -1,0 +1,16 @@
+---
+title: Grid
+description: Arrange `GridItem` children in an application grid.
+---
+
+```python
+from velto.ui import Grid
+```
+
+`Grid(*children, columns=12, gap=0, row_gap=None, column_gap=None, key=None, ref=None, **props)` accepts `GridItem` children or components that resolve to them.
+
+```python
+Grid(GridItem(Text("Inbox"), span=6), GridItem(Text("Today"), span=6), gap=12)
+```
+
+The public breakpoint configuration belongs to `App(settings={"grid": {"breakpoints": ...}})`. Read [Grid](/layout/grid).

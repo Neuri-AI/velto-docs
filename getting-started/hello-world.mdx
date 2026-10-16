@@ -1,0 +1,225 @@
+---
+title: "Hello World"
+description: "Create, run, and understand your first native Python application with Velto and PSX Markup."
+---
+
+In this lesson, you'll create a native desktop window that displays **Hello, World!**. You'll then change its content and learn what the few lines of application code actually do.
+
+By the end, you'll have a running Velto project and a basic understanding of how Python, PSX Markup, and a native backend fit together.
+
+## Before you start
+
+Complete [Install Velto](/getting-started/installation) first. You should have:
+
+- A working Python virtual environment.
+- Velto with the PySide6 backend installed.
+- Velto CLI available in your terminal.
+- A graphical desktop environment where a window can open.
+
+We'll use **PySide6** throughout this lesson. You don't need to know Qt or how to construct Qt widgets manually.
+
+## 1. Generate your application
+
+In a terminal, navigate to the workspace you created during installation and activate your virtual environment if it isn't already active.
+
+Run:
+
+```bash
+velto init --name my-first-velto-app --framework pyside6
+```
+
+The command has three important parts:
+
+- **`velto init`** asks the CLI to create a new application project.
+- **`--name my-first-velto-app`** gives the project its directory name.
+- **`--framework pyside6`** selects the native UI toolkit for the generated application.
+
+The CLI may ask you to confirm additional project settings. Follow the prompts to finish initialization.
+
+When it completes, open the new directory:
+
+```bash
+cd my-first-velto-app
+```
+
+<Note>
+  The generated project contains more than one file because native applications also need configuration and resources. For now, we'll focus on `main.py`. You'll learn what the other directories do in [Project structure](/getting-started/project-structure).
+</Note>
+
+## 2. Run it
+
+From the project directory, run:
+
+```bash
+velto start
+```
+
+A desktop window should appear with the text **Hello, World!**.
+
+This is a native window created through the selected UI toolkit—not a browser tab and not an HTML page embedded in Chromium.
+
+If the window doesn't appear, check the terminal for errors, confirm that you're in the generated project directory, and verify that PySide6 is installed in the Python environment being used.
+
+## 3. Open the application code
+
+Open `main.py` in your code editor. The current boilerplate follows this structure (the CLI substitutes a generated class name for the template placeholder):
+
+```python
+import sys
+
+from velto import VeltoContext
+from velto.ui import psx
+
+
+class MyFirstVeltoApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column">
+                <Text>Hello, World!</Text>
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyFirstVeltoApp().run())
+```
+
+Let's read this from the outside in.
+
+### The application context
+
+```python
+from velto import VeltoContext
+```
+
+`VeltoContext` is the base class for a Velto application. It provides the application lifecycle, reads its configuration, and connects your interface to the selected native UI toolkit. By inheriting from `VeltoContext`, you define what your application should display without manually creating a native window.
+
+```python
+class MyFirstVeltoApp(VeltoContext):
+```
+
+You don't have to manage a Qt window directly in this first example. The application context and its configuration take care of starting the native application.
+
+### The render method
+
+```python
+def render(self):
+```
+
+The `render()` method defines the interface your application displays. You implement this method in your application class and return a UI description created with `psx()`.
+
+Velto uses that description to build and update the native interface. You don't need to create or position individual toolkit widgets yourself.
+
+```python
+return psx("""
+    <Flex direction="column">
+        <Text>Hello, World!</Text>
+    </Flex>
+""")
+```
+
+**`psx()`** is the function used to write interfaces with **PSX Markup**. It takes a string containing markup, processes its elements and attributes, and returns a structured representation of the interface that Velto can render.
+
+PSX Markup resembles HTML because it uses tags, attributes, and nested elements. However, these tags represent Velto UI components, not HTML elements displayed in a browser.
+
+For example, `<Flex>` defines a layout container, while `<Text>` displays text. Velto translates these components into native UI elements using the selected backend.
+
+You don't need to understand how this translation works yet. For now, remember that **PSX Markup describes what your interface should contain, and Velto handles how it appears on screen.**
+### Read the markup
+
+Consider the two tags in your application:
+
+```xml
+<Flex direction="column">
+    <Text>Hello, World!</Text>
+</Flex>
+```
+
+`<Flex>` is a layout container. It gives its children a place in the interface. The `direction="column"` attribute asks it to arrange children vertically; that will become more noticeable when you add more than one child.
+
+`<Text>` displays the text written between its opening and closing tags. Here, that content is `Hello, World!`.
+
+The nesting is important: `<Text>` is a **child** of `<Flex>`. The layout container controls how its child is positioned.
+
+<Note>
+  This XML-formatted snippet shows the markup inside the Python string; it is not a separate XML file. In your application, the markup belongs inside `psx("""...""")`.
+</Note>
+
+### Starting the application
+
+At the bottom of `main.py`, you'll find:
+
+```python
+if __name__ == "__main__":
+    sys.exit(MyFirstVeltoApp().run())
+```
+
+The `if` statement is a standard Python entry-point pattern. It ensures the application starts when you execute `main.py` as a program.
+
+`MyFirstVeltoApp()` creates your application context, and `.run()` starts it. `sys.exit(...)` passes the application's exit status back to the operating system.
+
+## 4. Make your first change
+
+Let's prove that the text on screen comes from your markup.
+
+In `main.py`, change:
+
+```xml
+<Text>Hello, World!</Text>
+```
+
+to:
+
+```xml
+<Text>My first Velto application!</Text>
+```
+
+Save the file, close the running window, and start the application again:
+
+```bash
+velto start
+```
+
+The window should now display **My first Velto application!**.
+
+You changed the native interface without constructing or updating a Qt widget manually. You changed the PSX Markup that describes what Velto should display.
+
+## 5. Add another text element
+
+Now replace the markup inside `psx()` with:
+
+```xml
+<Flex direction="column" gap="12">
+    <Text>My first Velto application!</Text>
+    <Text>Built with Python and PSX Markup.</Text>
+</Flex>
+```
+
+Run the application again.
+
+You should see two text elements arranged vertically. The `gap` attribute adds space between the children of the layout container.
+
+This example demonstrates a useful principle: **a container can have multiple child components**, and its attributes influence their arrangement.
+
+You'll learn the full behavior of `<Flex>` later in [Flex layout](/layout/flex). For now, recognizing the parent-child relationship is enough.
+
+## What you've learned
+
+You can now identify the main parts of a basic Velto application:
+
+| Part | Its role |
+| --- | --- |
+| `VeltoContext` | Provides the native application context |
+| `render()` | Supplies the interface description |
+| `psx()` | Processes your PSX Markup |
+| `<Flex>` | Arranges child elements |
+| `<Text>` | Displays text |
+| `velto start` | Runs the generated application from source |
+
+You have also seen how editing markup changes the native interface.
+
+## Next: build a reusable component
+
+Right now, the interface is written directly in `render()`. That's fine for a small example, but larger applications need ways to reuse parts of their UI.
+
+In [Your first component](/getting-started/first-component), you'll learn how to extract an interface into a Python component using `@component`—and why doing so makes applications easier to organize.

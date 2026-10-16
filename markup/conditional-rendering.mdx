@@ -1,0 +1,95 @@
+---
+title: "Conditional rendering"
+description: "Use PSX Markup's compiled conditions to include or choose UI elements."
+---
+
+Conditions determine **which elements belong in the next UI tree**. You already learned the state-update model in [Conditional and dynamic UI](/fundamentals/conditional-and-dynamic-ui). Here, the focus is the exact PSX Markup syntax.
+
+Use these operators in the PSX Markup written inside your components.
+
+## Include an element with `&&`
+
+```python
+from velto.ui import component, psx
+
+@component
+def SaveNotice(saved: bool):
+    return psx("""
+        <Flex direction="column">
+            {saved && <Text>Changes saved</Text>}
+        </Flex>
+    """)
+```
+
+If `saved` is truthy, the `<Text>` element is present. Otherwise, that conditional contributes no child. The right-hand element is not constructed when the condition is false.
+
+Use `&&` for **optional content** rather than an if statement outside the markup.
+
+## Choose between two branches with `? :`
+
+```python
+@component
+def ConnectionStatus(connected: bool):
+    return psx("""
+        <Flex direction="column">
+            {connected
+                ? <Text>Connected</Text>
+                : <Text>Disconnected</Text>}
+        </Flex>
+    """)
+```
+
+The ternary selects one of two alternatives. It is useful when both outcomes should display different content.
+
+## Compare values
+
+```python
+@component
+def ReviewStatus(status: str):
+    return psx("""
+        <Flex direction="column">
+            {status == "ready" && <Text>Ready for review</Text>}
+            {status != "ready" && <Text>Still preparing</Text>}
+        </Flex>
+    """)
+```
+
+The compiled grammar supports `==`, `!=`, `<`, `<=`, `>`, and `>=`. Use `==` and `!=`, **not** JavaScript's `===` and `!==`.
+
+## Combine or negate conditions
+
+The expressive grammar also recognizes `||` and unary `!`:
+
+```jsx
+{!loading && <Text>Finished loading</Text>}
+{has_error || is_offline
+    ? <Text>Unavailable</Text>
+    : <Text>Available</Text>}
+```
+
+`&&` and `||` short-circuit: an unnecessary right-hand branch is not evaluated. A ternary evaluates only its chosen branch.
+
+When a condition becomes false after an element was previously present, PSX's reconciler removes that element from the mounted tree. You update **state**, not native widgets manually. For the resulting component lifecycle and cleanup behavior, see [Effects and refs](/fundamentals/effects-and-refs) and [VNode and reconciliation](/advanced/vnode-and-reconciliation).
+
+## When not to use an expression
+
+If the condition requires a complex calculation, compute a meaningful Boolean or status value in Python first, then reference it in markup. This keeps UI intent readable and reduces repeated logic.
+
+```python
+@component
+def AccountNotice(is_active: bool, has_access: bool):
+    can_continue = is_active and has_access
+
+    return psx("""
+        <Flex>
+            {can_continue && <Text>You can continue</Text>}
+        </Flex>
+    """)
+```
+
+## Limitations
+
+- These operators are **PSX Markup syntax**, not Python `and`, `or`, or `not` inside markup.
+- A condition can add or remove components. Stable keys are needed when the UI generates a *collection* of related items.
+
+Next: [Lists and keys](/markup/lists-and-keys).

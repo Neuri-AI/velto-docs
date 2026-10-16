@@ -1,0 +1,184 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Velto",
+  "description": "Build native Python applications with Velto, PSX Markup, Pydux, and Qyro.",
+  "colors": {
+    "primary": "#29dbb3",
+    "light": "#29dbb3",
+    "dark": "#29dbb3"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start here",
+        "pages": [
+          "introduction",
+          "getting-started/overview",
+          "getting-started/installation",
+          "getting-started/hello-world",
+          "getting-started/first-component",
+          "getting-started/first-interaction",
+          "getting-started/project-structure",
+          "getting-started/next-steps"
+        ]
+      },
+      {
+        "group": "Fundamentals",
+        "pages": [
+          "fundamentals/components-props-children",
+          "fundamentals/events-and-local-state",
+          "fundamentals/effects-and-refs",
+          "fundamentals/conditional-and-dynamic-ui",
+          "fundamentals/keys-and-identity"
+        ]
+      },
+      {
+        "group": "PSX Markup",
+        "pages": [
+          "markup/overview",
+          "markup/syntax-and-elements",
+          "markup/values-and-expressions",
+          "markup/conditional-rendering",
+          "markup/lists-and-keys",
+          "markup/language-reference"
+        ]
+      },
+      {
+        "group": "Build interfaces",
+        "pages": [
+          "ui/overview",
+          "ui/text-actions-and-feedback",
+          "ui/inputs-and-selection",
+          "ui/media-navigation-and-native",
+          "ui/containers-and-scrolling",
+          "layout/overview",
+          "layout/flex",
+          "layout/sizing-spacing-and-alignment",
+          "layout/grid",
+          "layout/native-geometry",
+          "layout/cinnamon"
+        ]
+      },
+      {
+        "group": "State management · Pydux",
+        "pages": [
+          "state/overview",
+          "state/slices-store-and-dispatch",
+          "state/selectors-provider-and-hooks",
+          "state/middleware-and-async-workflows",
+          "state/devtools"
+        ]
+      },
+      {
+        "group": "Application runtime · Qyro",
+        "pages": [
+          "runtime/overview",
+          "runtime/velto-context",
+          "runtime/settings-and-configuration",
+          "runtime/resources-and-environment",
+          "runtime/lifecycle-and-platforms"
+        ]
+      },
+      {
+        "group": "Projects and CLI",
+        "pages": [
+          "projects/overview",
+          "projects/focusboard-stage-01-hello",
+          "projects/focusboard-stage-02-components",
+          "projects/focusboard-stage-03-interaction",
+          "projects/focusboard-stage-04-dynamic-list",
+          "projects/focusboard-stage-05-layout",
+          "projects/focusboard-stage-06-shared-state",
+          "projects/focusboard-stage-07-runtime-services",
+          "projects/focusboard-stage-08-distribution",
+          "cli/overview",
+          "cli/create-and-run",
+          "cli/build-and-freeze",
+          "cli/bundle-and-sign",
+          "cli/troubleshooting"
+        ]
+      },
+      {
+        "group": "Extend Velto",
+        "pages": [
+          "extensibility/overview",
+          "extensibility/component-libraries",
+          "extensibility/plugins-and-discovery",
+          "extensibility/renderer-adapters",
+          "extensibility/native-widget-integration"
+        ]
+      },
+      {
+        "group": "Advanced",
+        "pages": [
+          "advanced/composition-patterns",
+          "advanced/vnode-and-reconciliation",
+          "advanced/rendering-and-event-lifecycle",
+          "advanced/renderer-architecture",
+          "advanced/native-integration-patterns",
+          "advanced/layout-engine-and-measurement",
+          "advanced/state-synchronization",
+          "advanced/testing-and-headless-rendering",
+          "advanced/diagnostics-and-performance",
+          "advanced/cross-platform-architecture",
+          "advanced/large-application-structure",
+          "advanced/production-distribution"
+        ]
+      },
+      {
+        "group": "API reference",
+        "pages": [
+          "reference/overview",
+          "reference/facade-and-compatibility",
+          "reference/ui/app-vnode-and-composition",
+          "reference/ui/hooks-and-markup",
+          "reference/ui/qyro-and-pydux-integrations",
+          "reference/ui/extensions-and-renderers",
+          "reference/ui/errors",
+          "reference/state",
+          "reference/runtime",
+          "reference/errors"
+        ]
+      },
+      {
+        "group": "Component reference",
+        "pages": [
+          "reference/ui/components/badge",
+          "reference/ui/components/button",
+          "reference/ui/components/checkbox",
+          "reference/ui/components/divider",
+          "reference/ui/components/flex",
+          "reference/ui/components/fragment",
+          "reference/ui/components/grid",
+          "reference/ui/components/grid-item",
+          "reference/ui/components/image",
+          "reference/ui/components/input",
+          "reference/ui/components/link",
+          "reference/ui/components/native",
+          "reference/ui/components/progress-bar",
+          "reference/ui/components/radio",
+          "reference/ui/components/radio-group",
+          "reference/ui/components/scroll",
+          "reference/ui/components/select",
+          "reference/ui/components/slider",
+          "reference/ui/components/spacer",
+          "reference/ui/components/spin-box",
+          "reference/ui/components/switch",
+          "reference/ui/components/text",
+          "reference/ui/components/text-area"
+        ]
+      },
+      {
+        "group": "Troubleshooting",
+        "pages": [
+          "troubleshooting/installation-and-imports",
+          "troubleshooting/markup-and-components",
+          "troubleshooting/state-and-updates",
+          "troubleshooting/layout-and-renderers",
+          "troubleshooting/cli-and-distribution"
+        ]
+      }
+    ]
+  }
+}

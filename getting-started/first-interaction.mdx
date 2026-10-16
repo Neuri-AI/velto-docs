@@ -1,0 +1,324 @@
+---
+title: "Your first interaction"
+description: "Make your Velto interface respond to a button click using events and local state."
+---
+
+In [Your first component](/getting-started/first-component), you created a reusable `Welcome` component and displayed it with different names. So far, your interface has only **displayed information**.
+
+Now you'll make it respond to something the user does.
+
+In this lesson, you'll add a button that increases a number each time you click it. Along the way, you'll learn what an **event**, a **callback**, and **local state** are—and how they work together in Velto.
+
+By the end, you'll have a working counter inside your existing application. You won't need to create a Qt button manually or manage the native window yourself.
+
+## 1. Start with your existing application
+
+Open `main.py` from the project you've been using throughout Getting Started.
+
+Your application should look similar to this:
+
+```python
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx
+
+
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Welcome, {name}!</Text>
+    """)
+
+
+class MyFirstVeltoApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="12px">
+                <Welcome name="Alex" />
+                <Welcome name="Sam" />
+                <Welcome name="Taylor" />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyFirstVeltoApp().run())
+```
+
+Keep `Welcome`. We'll add a second component to the same application.
+
+## 2. Add a button
+
+First, create a new component named `Counter` above your application class:
+
+```python
+@component
+def Counter():
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Count: 0</Text>
+            <Button>Increment</Button>
+        </Flex>
+    """)
+```
+
+You already know most of this markup:
+
+- `<Flex>` arranges the elements vertically.
+- `<Text>` displays the current number.
+- `<Button>` creates a native button with the label **Increment**.
+
+Now add `<Counter />` to your application's `render()` method:
+
+```python
+def render(self):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Welcome name="Alex" />
+            <Welcome name="Sam" />
+            <Welcome name="Taylor" />
+            <Counter />
+        </Flex>
+    """)
+```
+
+Save and run your project:
+
+```bash
+velto start
+```
+
+You'll see the greetings and a button beneath them.
+
+Try clicking **Increment**. Nothing changes yet. The button is visible, but we haven't told Velto what should happen when it is clicked.
+
+## 3. Respond to a click
+
+A user action—such as clicking a button—is called an **event**.
+
+To respond to the button's click event, define a Python function inside `Counter`:
+
+```python
+@component
+def Counter():
+    def increment():
+        print("Button clicked!")
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Count: 0</Text>
+            <Button on_click={increment}>Increment</Button>
+        </Flex>
+    """)
+```
+
+The important part is:
+
+```xml
+<Button on_click={increment}>Increment</Button>
+```
+
+`on_click` is the button's click event prop. `{increment}` passes a reference to your Python function, so Velto can call it when the button is clicked.
+
+Notice that you write `increment`, **not** `increment()`. Adding parentheses would call the function immediately instead of passing it as a callback.
+
+Save the file, restart the application if necessary, and click the button. You should see `Button clicked!` in the terminal where you started Velto.
+
+You've now connected a native UI event to Python code.
+
+But the displayed count is still `0`. Printing a message doesn't change the interface. For that, the component needs to remember a value.
+
+## 4. Give the component local state
+
+**State** is information a component remembers between updates. For a counter, the state is the current number.
+
+Velto provides a function called `use_state()` for this purpose.
+
+Update your import:
+
+```python
+from velto.ui import component, psx, use_state
+```
+
+Then add state to `Counter`:
+
+```python
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Count: {count}</Text>
+            <Button>Increment</Button>
+        </Flex>
+    """)
+```
+
+Let's look at this line:
+
+```python
+count, set_count = use_state(0)
+```
+
+- `use_state(0)` creates local state with an initial value of `0`.
+- `count` is the current value.
+- `set_count` is the function used to update that value.
+
+Inside the markup, `{count}` displays the current number.
+
+This is different from an ordinary local variable. When you update state through its setter, Velto can update the interface to reflect the new value.
+
+<Note>
+  `use_state()` is a **hook**. Hooks let components use features such as local state. For now, place `use_state()` at the top level of your component, before the `return` statement. We'll cover the full rules for hooks later.
+</Note>
+
+## 5. Update state when the button is clicked
+
+Now let's make the number change when you click the button.
+
+Replace `Counter` with:
+
+```python
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Count: {count}</Text>
+            <Button on_click={increment}>Increment</Button>
+        </Flex>
+    """)
+```
+
+When you click **Increment**, three things happen:
+
+1. The button calls `increment()`.
+2. `set_count(count + 1)` saves a number that is one higher.
+3. Velto updates the text on the screen.
+
+If the counter displays `0`, the first click changes it to `1`. The next click changes it to `2`.
+
+### Another way to update the number
+
+You may also see this version:
+
+```python
+def increment():
+    set_count(lambda current: current + 1)
+```
+
+Both versions increase the counter by one. The difference is simple:
+
+- **`set_count(count + 1)`** means: *“I've calculated the new number. Save it.”*
+- **`set_count(lambda current: current + 1)`** means: *“Take the latest number you have, add one, and save it.”*
+
+`lambda` is just a short way to write a Python function. You don't need to use it to finish this lesson.
+
+For a single button click in this example, the first version is easier to read. When a new value depends on the previous state—especially if several updates happen close together—the second form is often more useful.
+
+<Note>
+  Update state when something happens, such as a button click. Don't call `set_count()` directly while the component is rendering.
+</Note>
+
+## 6. Your complete application
+
+Here's the full `main.py`, including the `Welcome` component from the previous lesson and your new interactive `Counter`:
+
+```python
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx, use_state
+
+
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Welcome, {name}!</Text>
+    """)
+
+
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Count: {count}</Text>
+            <Button on_click={increment}>Increment</Button>
+        </Flex>
+    """)
+
+
+class MyFirstVeltoApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="12px">
+                <Welcome name="Alex" />
+                <Welcome name="Sam" />
+                <Welcome name="Taylor" />
+                <Counter />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyFirstVeltoApp().run())
+```
+
+Save the file, close the previous window if it's open, and run:
+
+```bash
+velto start
+```
+
+Your window should show three greetings, followed by a counter starting at `0` and an **Increment** button.
+
+Click the button a few times. The number should increase each time:
+
+```text
+Count: 0
+Count: 1
+Count: 2
+Count: 3
+```
+
+These are successive values displayed in the same interface, not four separate text elements.
+
+## 7. Try it yourself
+
+Now make a few changes without looking at the completed example:
+
+1. **Add a decrement button.** Create a `decrement()` function that calls `set_count(lambda current: current - 1)`, then connect it to a second `<Button>`.
+2. **Add a reset button.** Create a `reset()` function that calls `set_count(0)` and connect it to a button labeled `Reset`.
+3. **Change the initial value.** Replace `use_state(0)` with `use_state(10)`. Restart the application and see where the counter begins.
+
+<Note>
+  Changing the initial value in source code doesn't reset an already-mounted component automatically. Restart the application to try a different starting value.
+</Note>
+
+## What you've learned
+
+Your application can now respond to user actions and update what it displays.
+
+- **`<Button>`** creates a clickable native UI element.
+- **`on_click={increment}`** connects a button click to a Python callback.
+- **`use_state(0)`** gives a component a value it can remember.
+- **`count`** reads the current value.
+- **`set_count(...)`** updates that value and allows the interface to refresh.
+- **`set_count(count + 1)`** calculates the next number and saves it. You also learned that a function can be passed to the setter when the update should use the latest state.
+
+You don't need to understand every detail of state management yet. The key idea is that **events trigger Python callbacks, callbacks update state, and Velto updates the interface**.
+
+You've now installed Velto, created a native window, built a reusable component, and added an interaction.
+
+Continue to [Project structure](/getting-started/project-structure) to learn how the files and folders in your generated Velto project fit together.

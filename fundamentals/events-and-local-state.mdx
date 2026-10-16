@@ -1,0 +1,323 @@
+---
+title: "Events and local state"
+description: "Handle user interactions, update component state, and understand how Velto refreshes the interface."
+---
+
+In [Your first interaction](/getting-started/first-interaction), you built a counter: clicking a button changed a number on the screen. You used two important features without needing to understand all their details:
+
+- An **event** told your component that something happened.
+- **Local state** remembered a value so the interface could display it.
+
+In this chapter, you'll learn how those pieces work together, how to handle values from input controls, and how to decide when a value belongs in state.
+
+## Events: respond to something the user does
+
+An event is something that happens in your interface, such as clicking a button or changing an input. Components expose **event props** that let you supply Python functions to handle those events.
+
+Consider a button:
+
+```python
+from velto.ui import component, psx
+
+
+@component
+def GreetingButton():
+    def say_hello():
+        print("Hello from Velto!")
+
+    return psx("""
+        <Button on_click={say_hello}>Say hello</Button>
+    """)
+```
+
+Here's what happens:
+
+1. `say_hello` is a regular Python function defined inside the component.
+2. `on_click={say_hello}` gives the button a **reference** to that function.
+3. When the user clicks the button, Velto calls the function.
+4. The message appears in your terminal.
+
+Notice that the callback is passed **without parentheses**:
+
+```python
+# Correct: pass the function so it can run when clicked.
+<Button on_click={say_hello}>Say hello</Button>
+```
+
+Writing `say_hello()` would call the function while the interface is being constructed, rather than passing it as the click handler.
+
+<Warning>
+  Use `on_click={say_hello}`, not `on_click={say_hello()}`. An event prop expects a callback, not the result of calling it.
+</Warning>
+
+## Local state: remember a value
+
+Printing a message is useful, but it doesn't change what the application displays. For that, your component needs to remember a value and update it when something happens.
+
+Velto provides the `use_state` hook:
+
+```python
+count, set_count = use_state(0)
+```
+
+`use_state(0)` gives you two things:
+
+| Name | Purpose |
+| --- | --- |
+| `count` | The current state value, initially `0` |
+| `set_count` | A function used to request a state update |
+
+The names are up to you. For example, `name, set_name = use_state("")` works the same way for a text value.
+
+### A counter with three actions
+
+Let's extend your first counter with buttons to increment, decrement, and reset its value.
+
+```python
+from velto.ui import component, psx, use_state
+
+
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    def decrement():
+        set_count(count - 1)
+
+    def reset():
+        set_count(0)
+
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Count: {count}</Text>
+            <Flex gap="8px">
+                <Button on_click={decrement}>Decrease</Button>
+                <Button on_click={reset}>Reset</Button>
+                <Button on_click={increment}>Increase</Button>
+            </Flex>
+        </Flex>
+    """)
+```
+
+Try the buttons in your application. Each action changes the same state value, and the text displays the updated number.
+
+### How an event updates the interface
+
+The interaction follows a simple cycle:
+
+1. Velto renders `Counter` with `count` set to `0`.
+2. The user clicks **Increase**.
+3. The `increment` callback calls `set_count(count + 1)`.
+4. Velto processes the state update and renders the component again with the new value.
+5. `{count}` in the PSX Markup displays that value.
+
+You don't need to find the `<Text>` element and change it yourself. Your component describes **what to display for the current state**, and Velto handles updating the rendered interface.
+
+<Note>
+  A state setter requests an update; don't assume the variable in the currently running callback changes immediately. Read the updated value when the component renders again.
+</Note>
+
+## Setting a value or updating from the previous value
+
+You've already seen this form:
+
+```python
+def increment():
+    set_count(count + 1)
+```
+
+It means: **take the `count` value available here, add one, and request that new value**.
+
+You can also pass a function to the setter:
+
+```python
+def increment():
+    set_count(lambda current: current + 1)
+```
+
+It means: **when applying the update, take the current state value, add one, and use the result**.
+
+Both forms are useful, but they express slightly different intentions:
+
+| Direct value | Function update |
+| --- | --- |
+| `set_count(0)` | `set_count(lambda current: current + 1)` |
+| Use when you already know the new value | Use when the new value depends on the previous state |
+| Good for reset, selection, and direct assignment | Good for counters and other relative changes |
+
+For simple examples, `set_count(count + 1)` is easy to read. As your callbacks become more complex, the function form makes the dependency on previous state explicit.
+
+You don't need to memorize both immediately. Start with the form that clearly communicates what your callback should do.
+
+## Events can provide values
+
+A button click usually tells you that an action occurred. An input change is different: your callback also needs to know **what the user entered**.
+
+For an `Input`, you can receive its new value through `on_change`:
+
+```python
+from velto.ui import component, psx, use_state
+
+
+@component
+def NameEditor():
+    name, set_name = use_state("")
+
+    def handle_name_change(value: str):
+        set_name(value)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            <Input value={name} on_change={handle_name_change} />
+            <Text>Your name is: {name}</Text>
+        </Flex>
+    """)
+```
+
+As you type, the input supplies its new text to `handle_name_change`. The callback stores that text using `set_name`, and the `<Text>` element displays it.
+
+There are two important props on the input:
+
+- `value={name}` tells the input which text to display.
+- `on_change={handle_name_change}` tells Velto what to do when the text changes.
+
+Together, they keep the input and the component's state in sync. This pattern is often called a **controlled input**.
+
+### Use a callback that matches the event
+
+Compare these handlers:
+
+```python
+def handle_click():
+    print("Clicked!")
+
+
+def handle_name_change(value: str):
+    set_name(value)
+```
+
+The first handler needs no new value. The second expects the value supplied by the input event.
+
+Event callbacks don't all have the same arguments. Consult a component's reference page when you need to know which values its event props provide.
+
+## State belongs to a component
+
+Local state is useful when one component owns a piece of information.
+
+For example, a `Counter` can keep its own count. If you render two counters, each instance has its own state:
+
+```python
+return psx("""
+    <Flex direction="column" gap="16px">
+        <Counter />
+        <Counter />
+    </Flex>
+""")
+```
+
+Clicking a button in the first counter doesn't mean the second counter should change. They're separate component instances.
+
+This is a good reason to keep state close to the component that uses it: you can reuse that component without making unrelated parts of your interface depend on one another.
+
+### What should go into state?
+
+Use local state for information that can change while the application runs **and affects what the component displays**.
+
+Examples include an input's text, whether a section is expanded, a selected option, or the current count.
+
+Not every Python variable needs to be state:
+
+```python
+@component
+def Welcome(name: str):
+    greeting = f"Welcome, {name}!"
+
+    return psx("""
+        <Text>{greeting}</Text>
+    """)
+```
+
+`greeting` is calculated from an existing prop. It doesn't need a separate setter because it can be calculated again when the component renders.
+
+A useful question is: **does this value need to be remembered between renders, or can I calculate it from the data I already have?**
+
+## Keep rendering separate from user actions
+
+A component's body describes its interface. Callbacks describe what should happen in response to events.
+
+Avoid requesting state updates unconditionally while the component is rendering:
+
+```python
+# Incorrect: requests another update during rendering.
+@component
+def Counter():
+    count, set_count = use_state(0)
+    set_count(count + 1)
+
+    return psx("""
+        <Text>{count}</Text>
+    """)
+```
+
+If every render requests another update, the component can enter a repeated update cycle.
+
+Instead, put the update inside an event callback:
+
+```python
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex gap="8px">
+            <Text>{count}</Text>
+            <Button on_click={increment}>Increase</Button>
+        </Flex>
+    """)
+```
+
+This way, the state changes when the user interacts with the interface, not simply because the component was rendered.
+
+## When local state is not enough
+
+Suppose your application eventually has a profile editor and a separate header that both need to display the same user information. If each component keeps its own unrelated copy, those copies can become inconsistent.
+
+For small interfaces, you can often move shared state into a common parent component and pass values and callbacks down as props. When shared state becomes more involved, Velto integrates **Pydux** for managing application-wide state.
+
+You don't need Pydux for the counter or name editor in this chapter. Learn the local pattern first; explore [State overview](/state/overview) when several parts of your application genuinely need coordinated data.
+
+## Common mistakes
+
+| Problem | What to do instead |
+| --- | --- |
+| Calling a handler in markup: `on_click={increment()}` | Pass the function: `on_click={increment}` |
+| Expecting `count` to change immediately after `set_count(...)` | Let Velto process the update and use the new value on the next render |
+| Updating state every time the component renders | Update state from callbacks or other appropriate lifecycle mechanisms |
+| Storing every calculated value in state | Derive simple values from existing props and state |
+| Assuming all event callbacks accept the same arguments | Check the specific component event contract |
+
+## Practice: build a small profile editor
+
+Combine the ideas from this chapter in one component:
+
+1. Create a `ProfileEditor` component with `name, set_name = use_state("")`.
+2. Add an `<Input>` that displays `name` and updates it through `on_change`.
+3. Display a greeting using the current name.
+4. Add a **Clear** button that calls `set_name("")`.
+5. Render two `ProfileEditor` instances and confirm that typing in one doesn't change the other.
+
+If you get stuck, revisit the `NameEditor` example above. You already have every building block needed for this exercise.
+
+## What you've learned
+
+An **event** invokes a Python callback when something happens in the interface. **Local state** lets a component remember values between renders, and its setter requests an update so the displayed interface can reflect the new value.
+
+You can now build components that respond to clicks, accept text input, and manage their own changing information without manually updating native widgets.
+
+Next, continue to [Effects and refs](/fundamentals/effects-and-refs) to learn how components work with resources and references beyond their local rendered content.

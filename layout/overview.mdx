@@ -1,0 +1,50 @@
+---
+title: "Layout overview"
+description: "Choose the right layout tools for native Velto interfaces."
+---
+
+Layout controls **where native widgets appear and how much space they receive**. In Velto, you describe the arrangement with PSX Markup; the layout system calculates geometry and the active renderer applies it to native widgets.
+
+This section focuses on the properties you write, not the implementation behind them.
+
+## Start with Flex
+
+For most screens, start with [`Flex`](/layout/flex). It places children in a row or column and provides spacing and alignment controls.
+
+```python
+from velto.ui import component, psx
+
+@component
+def ProfileSummary():
+    return psx("""
+        <Flex direction="column" gap="12px" padding="16px">
+            <Text font_size="20">Profile</Text>
+            <Text>Manage your account details.</Text>
+            <Button label="Edit profile" />
+        </Flex>
+    """)
+```
+
+`direction="column"` stacks the children vertically. `gap` creates space *between* them; `padding` creates space *inside* the container boundary.
+
+## Choose the appropriate guide
+
+| You want to… | Read |
+| --- | --- |
+| Stack widgets or arrange a toolbar | [Flex](/layout/flex) |
+| Control dimensions, padding, margins, and alignment | [Sizing, spacing, and alignment](/layout/sizing-spacing-and-alignment) |
+| Understand the 12-column Grid contract and its current limits | [Grid](/layout/grid) |
+| Understand how calculated sizes reach native widgets | [Native geometry](/layout/native-geometry) |
+| Understand the role of the layout engine | [Cinnamon](/layout/cinnamon) |
+
+## Layout is not CSS
+
+Some properties resemble web layout terminology, but PSX does not implement the browser's CSS model. Use the documented component properties rather than assuming a CSS property, unit, or responsive feature will work.
+
+In particular, distinguish **container properties** such as `gap` from **child layout metadata** such as `layout_width` and `align_self`. They solve different problems.
+
+## Keep platform differences in mind
+
+PSX defines portable contracts, while Qt, Kivy, Tkinter, and Headless have different native capabilities. A valid layout declaration does not by itself certify identical behavior in every renderer. When targeting multiple platforms, verify your screen on each intended backend.
+
+**Next:** [Flex layout](/layout/flex).

@@ -1,0 +1,16 @@
+---
+title: Native
+description: Integrate a native widget through the public adapter contract.
+---
+
+```python
+from velto.ui import Native
+```
+
+`Native(widget, props=None, signals=None, renderer=None, sfle_port=None, key=None, ref=None, **attrs)` embeds a native widget or adapter target. It is a renderer integration point, not a portable child container.
+
+```python
+Native(widget=my_widget, signals={"changed": on_changed})
+```
+
+Use only with a renderer that documents the target widget. See [native widget integration](/extensibility/native-widget-integration).

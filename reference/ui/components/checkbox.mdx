@@ -1,0 +1,16 @@
+---
+title: Checkbox
+description: Render a boolean choice control.
+---
+
+```python
+from velto.ui import Checkbox
+```
+
+`Checkbox(checked=False, enabled=True, on_change=None, key=None, ref=None, **props)` has no children. `on_change` receives the updated boolean value through the renderer bridge.
+
+```python
+Checkbox(checked=done, on_change=set_done)
+```
+
+Use controlled state: update `checked` from the same state that `on_change` changes. Visual semantics follow the selected backend.

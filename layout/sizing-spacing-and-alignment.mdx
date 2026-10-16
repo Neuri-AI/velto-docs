@@ -1,0 +1,90 @@
+---
+title: "Sizing, spacing, and alignment"
+description: "Control dimensions, inner spacing, margins, and child placement."
+---
+
+After choosing a container, decide how its children should use the available space. PSX distinguishes **container sizing** from **layout metadata attached to an individual widget**.
+
+## Size a container
+
+`Flex` supports dimensions such as `width`, `height`, `min_width`, `min_height`, `max_width`, and `max_height`.
+
+```python
+from velto.ui import component, psx
+
+@component
+def Sidebar():
+    return psx("""
+        <Flex direction="column" width="240px" padding="16px" gap="12px">
+            <Text font_size="20">Navigation</Text>
+            <Button label="Home" />
+            <Button label="Projects" />
+        </Flex>
+    """)
+```
+
+A definite width can be useful for a sidebar. For flexible content, avoid fixed dimensions unless the design requires them.
+
+## Size a child widget
+
+For ordinary controls, layout dimensions use names such as `layout_width` and `layout_height` rather than replacing the widget's native properties.
+
+```python
+@component
+def SearchPanel():
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Input placeholder="Search" layout_width="100%" />
+            <Button label="Search" layout_width="120px" />
+        </Flex>
+    """)
+```
+
+The distinction matters because components such as `Image` and `Scroll` also have their own `width` or `height` properties. Those belong to the component's contract and are not interchangeable with layout metadata.
+
+## Understand spacing
+
+| Property | Where it applies | Effect |
+| --- | --- | --- |
+| `gap` | Flex container | Space between children |
+| `padding` | Flex container | Space inside its edges |
+| `layout_margin_top`, etc. | Child | Space around a specific child |
+| `layout_padding_top`, etc. | Child | Layout padding for an individual participant |
+
+```python
+@component
+def Notice():
+    return psx("""
+        <Flex direction="column" gap="8px" padding="16px">
+            <Text layout_margin_bottom="8px">Account</Text>
+            <Text>Your changes will be saved locally.</Text>
+        </Flex>
+    """)
+```
+
+For edge-specific metadata, use the explicit suffixes `top`, `right`, `bottom`, and `left`.
+
+## Align and distribute
+
+Container-level `align_items` sets the default cross-axis alignment. A child can override that choice using `align_self`.
+
+```python
+@component
+def StatusActions():
+    return psx("""
+        <Flex direction="column" align_items="stretch" gap="8px">
+            <Text>Ready to continue?</Text>
+            <Button label="Continue" align_self="flex-end" />
+        </Flex>
+    """)
+```
+
+The supported `align_self` values include `auto`, `stretch`, `flex-start`, `flex-end`, `center`, and `baseline` at the shared layout contract level. Backend rendering support should still be verified.
+
+## Supported lengths are intentionally limited
+
+The layout system accepts defined length forms, including pixel lengths and percentages in supported properties, plus special values such as `auto` where documented. **Not every length form is accepted everywhere**: for example, a border width has different rules from a container width.
+
+Avoid copying `rem`, `vh`, `calc()`, or other browser expressions unless a component explicitly documents them. The layout engine is not a CSS parser.
+
+For detailed per-property constraints, consult [Flex](/reference/ui/components/flex) and the individual [component reference](/reference/overview).

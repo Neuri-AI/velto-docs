@@ -1,0 +1,16 @@
+---
+title: Select
+description: Render a controlled option selector.
+---
+
+```python
+from velto.ui import Select
+```
+
+`Select(options=(), value=None, placeholder="", enabled=True, on_change=None, key=None, ref=None, **props)` is a leaf component. `options` provides selectable values and `on_change` receives the selected value.
+
+```python
+Select(options=("All", "Open", "Done"), value=filter, on_change=set_filter)
+```
+
+Native option display varies by backend.

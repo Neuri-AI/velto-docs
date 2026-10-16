@@ -1,0 +1,58 @@
+---
+title: "Getting started"
+description: "Your learning path from a first native window to reusable, interactive Velto interfaces."
+---
+
+In this guide, you'll go from a Python environment to a working native desktop application. You'll then make the interface your own, extract a reusable component, and respond to user input.
+
+You don't need to know Velto, PSX Markup, Qt, or React beforehand. Familiarity with basic Python—functions, classes, and imports—is enough to begin.
+
+## What you'll build
+
+You'll start with a window displaying a greeting. By the end of the beginner path, you'll know how to organize that greeting into a component and make the interface respond when someone interacts with it.
+
+We'll use **PySide6**, a Python binding for the Qt desktop toolkit. Velto also integrates with other supported toolkits, but choosing one backend now keeps the first lessons focused on learning Velto rather than comparing native UI frameworks.
+
+<Note>
+  A **backend** is the native UI toolkit that ultimately creates the controls on screen. **PSX Markup** is the syntax you'll write to describe those controls. You can learn the markup without learning Qt's widget APIs first.
+</Note>
+
+## Your learning path
+
+<Steps>
+  <Step title="Install Velto">
+    [Prepare your environment](/getting-started/installation), install Velto with PySide6, and verify that the required modules are available.
+  </Step>
+  <Step title="Open your first native window">
+    In [Hello World](/getting-started/hello-world), create a small project, run it, and learn how Python and PSX Markup work together.
+  </Step>
+  <Step title="Create a reusable component">
+    In [Your first component](/getting-started/first-component), turn part of the interface into a component you can use again.
+  </Step>
+  <Step title="Make it interactive">
+    In [Your first interaction](/getting-started/first-interaction), connect an event to Python code and update what the user sees.
+  </Step>
+  <Step title="Explore your project">
+    In [Project structure](/getting-started/project-structure), learn where application code, views, components, settings, and resources belong.
+  </Step>
+</Steps>
+
+## Two ideas to keep in mind
+
+**Your interface is written in Python and PSX Markup.** The Python code controls application behavior. PSX Markup uses tags and attributes to express the interface's structure. You won't be writing HTML for a browser.
+
+**Your interface is displayed by native widgets.** Velto connects the UI you describe to a supported native toolkit. You don't need to understand its internal rendering system to create your first application.
+
+You'll encounter these ideas gradually, with examples that explain what each new piece does.
+
+## Before you begin
+
+Make sure you can open a terminal, run Python commands, and edit a `.py` file. You also need a graphical desktop session on Windows, macOS, or Linux.
+
+If you already have a working Python environment, you can move directly to [installation](/getting-started/installation) and follow the relevant steps.
+
+<Note>
+  This beginner path uses the Velto CLI to generate a project. The CLI is a convenience, not a requirement for writing Velto applications. The manual setup and packaging details are covered in later guides.
+</Note>
+
+Ready? [Install Velto](/getting-started/installation), then open your first native window.

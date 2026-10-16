@@ -1,0 +1,16 @@
+---
+title: Link
+description: Render a navigational or callback link.
+---
+
+```python
+from velto.ui import Link
+```
+
+`Link(label="", href=None, on_click=None, color=None, underline=True, enabled=True, key=None, ref=None, **props)` is text-only. Supply `href`, `on_click`, or both according to the renderer workflow.
+
+```python
+Link("Open documentation", href="https://example.invalid/docs")
+```
+
+External URL handling is a renderer and platform concern.

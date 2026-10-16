@@ -1,0 +1,90 @@
+---
+title: "Syntax and elements"
+description: "Write PSX tags, nested content, self-closing elements, text, and fragments."
+---
+
+PSX Markup describes a **tree of components**. Each element has a tag name, may have attributes, and may contain child elements or text. This page covers the shape of that tree. The values you pass through attributes are covered in [Values and expressions](/markup/values-and-expressions).
+
+## Write and nest elements
+
+```python
+from velto.ui import component, psx
+
+@component
+def Welcome():
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Welcome</Text>
+            <Text>Choose an action to continue.</Text>
+            <Button>Get started</Button>
+        </Flex>
+    """)
+```
+
+`<Flex>` is the parent. Its three children appear in the order written. Indentation helps humans read the markup; it does **not** control the layout. Props such as `direction` and `gap` determine the arrangement.
+
+Tags name **PSX components**, not HTML elements. A tag must be a built-in component or a custom component available to the compiled markup. For example, `<Text>` is valid; `<div>` is not automatically a supported tag.
+
+## Close tags correctly
+
+An element with content has a matching closing tag:
+
+```jsx
+<Text>Ready</Text>
+```
+
+An element with no children can be self-closing:
+
+```jsx
+<Input />
+```
+
+Closing tags must match the opening tag. This is invalid:
+
+```jsx
+<Text>Ready</Button>
+```
+
+PSX reports malformed markup instead of silently correcting it as a browser might.
+
+## Text belongs to a component's contract
+
+```jsx
+<Text>Account settings</Text>
+<Button>Save changes</Button>
+```
+
+Some components accept text content; others accept element children, a single child, or no children at all. Do not assume that every tag supports arbitrary nested content. The [Component reference](/reference/overview) documents each component's props and child policy.
+
+PSX also supports text mixed with a value:
+
+```jsx
+<Text>Welcome, {name}!</Text>
+```
+
+Here the markup text and the value of `name` form the displayed message. See [Values and expressions](/markup/values-and-expressions) for reference resolution.
+
+## Group siblings with a fragment
+
+A fragment groups elements without creating an extra native layout widget:
+
+```python
+@component
+def Messages():
+    return psx("""
+        <>
+            <Text>First message</Text>
+            <Text>Second message</Text>
+        </>
+    """)
+```
+
+Fragments use `<>` and `</>`. They are useful for returning multiple siblings, but they **do not provide layout**. If you need spacing, alignment, or sizing, use an actual layout component such as `<Flex>`.
+
+PSX can also wrap multiple top-level nodes in a virtual fragment. An explicit fragment makes the grouping visible in your source.
+
+## Try it
+
+Change the example by adding a third `<Text>`, replacing the outer `<Flex>` with a fragment, and observing the difference: the children remain, but the fragment no longer supplies layout behavior.
+
+Next: [Values and expressions](/markup/values-and-expressions).

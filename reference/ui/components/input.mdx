@@ -1,0 +1,16 @@
+---
+title: Input
+description: Render a single-line controlled text input.
+---
+
+```python
+from velto.ui import Input
+```
+
+`Input(value="", placeholder="", font_size=14, enabled=True, read_only=False, password=False, on_change=None, on_submit=None, key=None, ref=None, **props)` has no children. `on_change` receives the new text; `on_submit` follows native submit behavior.
+
+```python
+Input(value=title, placeholder="Task title", on_change=set_title, on_submit=save)
+```
+
+Keep `value` controlled by state. Password masking and submit details vary by renderer.

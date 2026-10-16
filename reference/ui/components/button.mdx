@@ -1,0 +1,16 @@
+---
+title: Button
+description: Render an action button with a click callback.
+---
+
+```python
+from velto.ui import Button
+```
+
+`Button(label, font_size=14, on_click=None, enabled=True, key=None, ref=None, **props)` accepts a text or numeric `label` and has no child content. `on_click` receives the renderer event payload where that backend provides one.
+
+```python
+Button("Add task", on_click=add_task, enabled=can_add)
+```
+
+Button callbacks follow the [event guide](/fundamentals/events-and-local-state). Native focus, keyboard handling, and styling are renderer-specific.

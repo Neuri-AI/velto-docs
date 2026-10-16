@@ -1,0 +1,201 @@
+---
+title: "Your first component"
+description: "Build a reusable Velto component, pass your first prop, and display it in PSX Markup."
+---
+
+In [Hello World](/getting-started/hello-world), you built a native window using PSX Markup inside `render()`. Now you'll learn how to move a piece of that interface into its own **component**.
+
+A component is a reusable part of your interface. You define it once in Python, then use it as a tag in PSX Markup.
+
+By the end of this lesson, you'll create a `Welcome` component, pass it a name, and display several greetings without repeating their markup.
+
+## 1. Why create a component?
+
+Imagine your application needs to welcome three people:
+
+```python
+def render(self):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Welcome, Alex!</Text>
+            <Text>Welcome, Sam!</Text>
+            <Text>Welcome, Taylor!</Text>
+        </Flex>
+    """)
+```
+
+This works. But if you decide to change the greeting, you must edit every `<Text>` element.
+
+Instead, you can define the greeting once and reuse it.
+
+## 2. Create `Welcome`
+
+Open `main.py` in the project from the previous lesson. Import `component` and `psx`:
+
+```python
+from velto.ui import component, psx
+```
+
+Above your application class, add:
+
+```python
+@component
+def Welcome():
+    return psx("""
+        <Text>Welcome to Velto!</Text>
+    """)
+```
+
+Let's unpack this:
+
+- `def Welcome():` defines a Python function.
+- `@component` makes that function a Velto UI component.
+- `psx()` describes the interface the component displays.
+
+`Welcome` is not another window or another application. It is a reusable piece of your existing interface.
+
+<Note>
+  Use a capitalized name for your custom components, such as `Welcome` or `UserCard`. This makes them easy to recognize in PSX Markup.
+</Note>
+
+## 3. Display your component
+
+Inside your application's `render()` method, use `<Welcome />`:
+
+```python
+def render(self):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Welcome />
+        </Flex>
+    """)
+```
+
+`<Welcome />` tells Velto to include the interface returned by the `Welcome` component.
+
+Here, `<Flex>` is a built-in layout component, while `<Welcome />` is the component you just defined. The closing `/>` is used because you're not placing any content between opening and closing tags.
+
+When you run the application, you'll see:
+
+```text
+Welcome to Velto!
+```
+
+## 4. Make the greeting customizable
+
+Right now, `Welcome` always displays the same message. Let's allow the caller to provide a name.
+
+Change the component to:
+
+```python
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Welcome, {name}!</Text>
+    """)
+```
+
+The `name` parameter is a **prop** (short for *property*). A prop passes information from the place where you use a component into the component itself.
+
+Inside the markup, `{name}` displays the value passed to that parameter.
+
+Now update `render()`:
+
+```python
+def render(self):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Welcome name="Alex" />
+        </Flex>
+    """)
+```
+
+The result is:
+
+```text
+Welcome, Alex!
+```
+
+Notice the connection: `name="Alex"` supplies the value, `def Welcome(name: str)` receives it, and `{name}` displays it.
+
+## 5. Reuse the same component
+
+Add two more greetings:
+
+```python
+def render(self):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Welcome name="Alex" />
+            <Welcome name="Sam" />
+            <Welcome name="Taylor" />
+        </Flex>
+    """)
+```
+
+Each instance uses the same `Welcome` component but receives a different value.
+
+You should see:
+
+```text
+Welcome, Alex!
+Welcome, Sam!
+Welcome, Taylor!
+```
+
+If you change the message inside `Welcome`, all three greetings will reflect the change.
+
+## 6. Your complete application
+
+Your `main.py` should now look like this:
+
+```python
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx
+
+
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Welcome, {name}!</Text>
+    """)
+
+
+class MyFirstVeltoApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="12px">
+                <Welcome name="Alex" />
+                <Welcome name="Sam" />
+                <Welcome name="Taylor" />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyFirstVeltoApp().run())
+```
+
+Save the file, close the previous application window if it's still running, and start your project:
+
+```bash
+velto start
+```
+
+You should see the three greetings in your native window.
+
+## 7. Try it yourself
+
+1. Add a fourth `<Welcome />` using your own name.
+2. Change `Welcome, {name}!` to `Hello, {name}!` and see how all greetings change.
+3. Change the `gap` on `<Flex>` to adjust the space between greetings.
+
+## What you've learned
+
+You now know how to create a component with `@component`, return PSX Markup from it, include it with a custom tag, and customize it using a simple prop.
+
+Components can also receive dictionaries, lists, and nested content. You'll explore those capabilities in [Components, props, and children](/fundamentals/components-props-children).
+
+Next, continue to [Your first interaction](/getting-started/first-interaction) to make your interface respond to user input.

@@ -1,0 +1,89 @@
+---
+title: "Lists and keys"
+description: "Generate dynamic elements with .map() and stable keys."
+---
+
+PSX Markup provides a `.map()` expression for turning an iterable into a list of UI elements. This page documents **how to write it and what PSX validates**. For why identity matters during reordering, read [Keys and identity](/fundamentals/keys-and-identity).
+
+## Render a Python collection
+
+```python
+from velto.ui import component, psx
+
+@component
+def NotesList(notes: list[dict]):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            {notes.map((note) =>
+                <Text key={note.id}>{note.title}</Text>
+            )}
+        </Flex>
+    """)
+```
+
+An example input is:
+
+```python
+notes = [
+    {"id": "note-101", "title": "Buy groceries"},
+    {"id": "note-102", "title": "Review pull request"},
+    {"id": "note-103", "title": "Call Alex"},
+]
+```
+
+**Important:** Python's built-in `list` has no `.map()` method. The expression shown above is **PSX Markup syntax**, not a method you call on the Python list.
+
+## Understand the callback
+
+```jsx
+{notes.map((note) =>
+    <Text key={note.id}>{note.title}</Text>
+)}
+```
+
+- `notes` is the iterable.
+- `(note) =>` introduces the item available to the expression.
+- `<Text ...>` is the element produced for that item.
+- `key={note.id}` identifies the generated element.
+
+The supported `.map()` form takes **one item parameter**. Keep the expression focused on producing the UI for that item.
+
+## Key the generated root
+
+When you render a custom component for each item, place the key on the repeated component itself:
+
+```jsx
+{notes.map((note) =>
+    <NoteRow key={note.id} title={note.title} />
+)}
+```
+
+Putting a key only on an element *inside* `NoteRow` does not identify the `NoteRow` siblings in their parent.
+
+The mapped root's key must be a **string or integer**, excluding booleans. It must be unique among the mapped siblings. Prefer an ID stored with the data, not an index or a freshly generated value.
+
+## Validation is intentional
+
+This is invalid because the generated `<Text>` has no key:
+
+```jsx
+{notes.map((note) =>
+    <Text>{note.title}</Text>
+)}
+```
+
+Compiled `.map()` validates the generated collection **before reconciliation**. It raises `MarkupSyntaxError` if a result is an unsupported value, or if its key is missing, invalid, or duplicated. A mapped callback may return an absent conditional result (`None` or `False`), which PSX skips.
+
+For ordinary sibling VNodes outside `.map()` validation, duplicate keys are detected by the reconciler and raise `DuplicateKeyError`. These are different validation paths.
+
+## What happens when the list changes?
+
+When the underlying data changes, the component renders the new list. PSX compares its keyed items with the previously mounted children, reuses compatible instances where possible, moves reordered items, and unmounts removed items.
+
+You should **change the Python state that holds the list**, not manually delete native widgets. A removed component's effects can clean up on unmount; actual memory reclamation still depends on backend ownership and remaining references. For those concepts, see [Keys and identity](/fundamentals/keys-and-identity) and [Effects and refs](/fundamentals/effects-and-refs).
+
+## Quick checklist
+
+Before using `.map()`, check that the source is statically authored literal markup, each callback produces a VNode (or an allowed absent result), the root has a stable key, and no two mapped results share that key.
+
+Next: [Language reference](/markup/language-reference).

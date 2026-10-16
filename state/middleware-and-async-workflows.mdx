@@ -1,0 +1,153 @@
+---
+title: "Middleware and async workflows"
+description: "Handle side effects with thunks and track loading, success, and failure in shared state."
+---
+
+Reducers should describe state changes, not perform network requests or read files. For operations that happen outside the store, Pydux supports **thunks**: callables dispatched through middleware.
+
+## Why use a thunk?
+
+Imagine a view loading projects. The interface needs to know whether loading has started, succeeded, or failed. Pydux's `create_async_thunk` generates three action types for that workflow:
+
+| Stage | When it is dispatched |
+| --- | --- |
+| `projects/load/pending` | Before the operation begins |
+| `projects/load/fulfilled` | When it returns successfully |
+| `projects/load/rejected` | When it raises an exception |
+
+## 1. Create a thunk
+
+```python
+from velto.state import create_async_thunk
+
+
+def load_projects():
+    # Replace with your application's data-access function.
+    return ["Website", "Desktop app", "API"]
+
+
+fetch_projects = create_async_thunk("projects/load", load_projects)
+```
+
+The thunk wraps your function and emits lifecycle actions around its execution.
+
+## 2. Handle its lifecycle in a slice
+
+```python
+from velto.state import configure_store, create_slice
+
+projects_slice = create_slice(
+    name="projects",
+    initial_state={"items": [], "status": "idle", "error": None},
+    reducers={},
+    extra_reducers={
+        fetch_projects.pending: lambda state, action: state.update(
+            status="loading", error=None
+        ),
+        fetch_projects.fulfilled: lambda state, action: state.update(
+            status="ready", items=action.payload
+        ),
+        fetch_projects.rejected: lambda state, action: state.update(
+            status="error", error=action.payload
+        ),
+    },
+)
+
+store = configure_store({"projects": projects_slice}, devtools=False)
+```
+
+`extra_reducers` handles actions created outside the slice's own `reducers` dictionary. Here it updates the loading status, data, and error message.
+
+## 3. Dispatch the thunk
+
+```python
+result = store.dispatch(fetch_projects())
+print(result)  # ['Website', 'Desktop app', 'API']
+print(store.get_state()["projects"]["status"])  # ready
+```
+
+`configure_store` installs thunk middleware automatically. If `load_projects` raises an exception, Pydux dispatches the rejected action and **re-raises** the exception, so the caller should handle it where appropriate.
+
+## What about `async def`?
+
+`create_async_thunk` also accepts an asynchronous payload creator. However, **the current implementation waits for the awaitable to finish before returning from dispatch**. Using an async function does not by itself guarantee a non-blocking desktop interface.
+
+For genuinely slow network or disk operations, arrange background execution using an appropriate worker or application service, and dispatch state updates at safe points. Do not assume that wrapping blocking work in a thunk moves it off the UI thread.
+
+## Custom middleware
+
+`configure_store` accepts a `middleware` sequence in addition to its built-in thunk middleware. Middleware can observe or adapt dispatched actions. Keep state calculations in reducers and use middleware for cross-cutting behavior such as logging or orchestration.
+
+## Common mistakes
+
+| Problem | What to do |
+| --- | --- |
+| A reducer fetches data | Move the fetch to a service or thunk. |
+| The UI freezes during a slow thunk | Use an appropriate background execution strategy; dispatch itself waits for completion. |
+| An exception seems to disappear | Handle the exception around `store.dispatch(...)`; the rejected action is also dispatched. |
+| A loading indicator never resets | Handle both fulfilled and rejected stages. |
+
+Next, learn how to inspect these actions in [DevTools and inspector](/state/devtools).
+
+## Threading and responsiveness
+
+`create_async_thunk()` does **not** automatically schedule work in a background thread. The current implementation resolves an awaitable and waits for its result. A slow thunk dispatched on the UI thread can therefore block the interface. Use an appropriate background execution strategy for long-running work and ensure UI-facing updates respect your renderer's thread rules.
+
+## Example: a thunk updating a Velto interface
+
+The following is a complete PSX view that displays a thunk's result. It intentionally uses an immediate result so the example is safe to run on the UI thread.
+
+```python main.py
+import sys
+from velto import VeltoContext
+from velto.ui import component, psx
+from velto.state import (
+    configure_store, create_slice, create_async_thunk,
+    use_dispatch, use_selector,
+)
+
+fetch_message = create_async_thunk("message/fetch", lambda: "Hello from Pydux")
+
+message_slice = create_slice(
+    name="message",
+    initial_state={"status": "idle", "text": "", "error": ""},
+    reducers={},
+    extra_reducers={
+        fetch_message.pending: lambda state, action: state.update(status="loading", error=""),
+        fetch_message.fulfilled: lambda state, action: state.update(
+            status="success", text=action.payload
+        ),
+        fetch_message.rejected: lambda state, action: state.update(
+            status="error", error=action.payload
+        ),
+    },
+)
+store = configure_store({"message": message_slice}, devtools=False)
+
+
+@component
+def MessagePanel():
+    status = use_selector(lambda state: state["message"]["status"])
+    message = use_selector(lambda state: state["message"]["text"])
+    error = use_selector(lambda state: state["message"]["error"])
+    dispatch = use_dispatch()
+    return psx("""
+        <Flex direction="column" padding="16px" gap="12px">
+            <Button label="Load message" on_click={() => dispatch(fetch_message())} />
+            <Text>Status: {status}</Text>
+            <Text>{message}</Text>
+            <Text>{error}</Text>
+        </Flex>
+    """)
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return psx("<MessagePanel />")
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+`pending`, `fulfilled`, and `rejected` are action types handled by `extra_reducers`. The component reads their results using selectors. **A thunk does not automatically move slow work to a background thread**; use an appropriate worker for blocking I/O.

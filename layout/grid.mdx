@@ -1,0 +1,58 @@
+---
+title: "Grid"
+description: "Understand the 12-column Grid contract and current implementation limits."
+---
+
+`Grid` and `GridItem` define a **12-column layout contract** for arranging content by spans and offsets. They are useful concepts for planning multi-column screens, but their current implementation status matters.
+
+> **Implementation status:** The PSX source currently defines and validates Grid declarations, but its Grid contract explicitly states that it does **not yet provide mounted native Grid layout**. Do not rely on the examples below as evidence of working Grid geometry across Qt, Kivy, or Tkinter.
+
+## Read the Grid structure
+
+A Grid declaration contains `GridItem` children. Each item's `span` describes its share of the 12 columns.
+
+```python
+from velto.ui import component, psx
+
+@component
+def TwoColumnPlan():
+    return psx("""
+        <Grid columns="12" gap="12px">
+            <GridItem span="6">
+                <Text>Left panel</Text>
+            </GridItem>
+            <GridItem span="6">
+                <Text>Right panel</Text>
+            </GridItem>
+        </Grid>
+    """)
+```
+
+This illustrates the intended **declaration**, not a promise that a renderer can mount and arrange the result today.
+
+## Understand the public contract
+
+| Property | Component | Meaning |
+| --- | --- | --- |
+| `columns` | `Grid` | Fixed at 12 in the current contract |
+| `gap` | `Grid` | General space between items |
+| `row_gap` | `Grid` | Vertical gap override |
+| `column_gap` | `Grid` | Horizontal gap override |
+| `span` | `GridItem` | Number of columns occupied, or `auto` |
+| `offset` | `GridItem` | Logical column offset |
+
+A declared span and offset must fit within the 12-column limit. Gap values are nonnegative pixel lengths.
+
+## Responsive metadata
+
+The contract defines breakpoints named `base`, `sm`, `md`, `lg`, and `xl`. Responsive span and offset values can be represented as mappings, but **metadata validation is not the same as responsive native rendering**.
+
+Until the renderer implementation is available and tested, use [`Flex`](/layout/flex) for production layouts that must work today.
+
+## What not to assume
+
+- `Grid` is not a general CSS Grid implementation.
+- There is no basis to assume arbitrary column counts, CSS tracks, or automatic browser-like placement.
+- A validated `GridItem` does not imply its native geometry has been calculated and applied.
+
+For the exact declarations, see [Grid](/reference/ui/components/grid) and [GridItem](/reference/ui/components/grid-item).

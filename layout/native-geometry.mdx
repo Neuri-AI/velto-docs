@@ -1,0 +1,62 @@
+---
+title: "Native geometry"
+description: "Understand how layout declarations become native widget positions."
+---
+
+Velto builds **native interfaces**. That means the position and size of a control eventually need to be applied to an actual widget managed by Qt, Kivy, Tkinter, or another supported renderer.
+
+You generally do not need to set native coordinates yourself. Instead, describe the desired arrangement using [Flex](/layout/flex) and supported sizing properties.
+
+## From markup to a native widget
+
+Consider this component:
+
+```python
+from velto.ui import component, psx
+
+@component
+def LoginHeader():
+    return psx("""
+        <Flex direction="column" gap="8px" padding="16px">
+            <Text font_size="22">Welcome back</Text>
+            <Text>Sign in to continue.</Text>
+        </Flex>
+    """)
+```
+
+Conceptually, three responsibilities are involved:
+
+1. **Your markup** describes the container, children, and layout properties.
+2. **The layout system** determines the geometry from supported constraints and measurements.
+3. **The renderer** creates or updates the native controls and applies the geometry it supports.
+
+The component remains expressed in PSX Markup; it does not need backend-specific positioning code.
+
+## Why a widget's natural size matters
+
+Text, images, and input controls do not all have the same natural dimensions. Their measured sizes can depend on font metrics, content, platform conventions, and backend capabilities.
+
+For this reason, a row that looks balanced in one backend may need testing in another. A Headless layout check can be valuable, but it does not replace native visual verification.
+
+## Container sizes and native sizes are different concepts
+
+A layout property such as `layout_width` describes a sizing requirement for an item. A component-specific property such as `Image.width` belongs to that widget's public contract. The two should not be treated as synonyms.
+
+Use [Sizing, spacing, and alignment](/layout/sizing-spacing-and-alignment) for the supported properties.
+
+## When you need direct native integration
+
+Sometimes an application requires a platform-specific control, such as a custom Qt widget. In that case, use the documented native integration path and test it with the matching renderer. Native integration is not a way to bypass unsupported layout contracts.
+
+See [Native widget integration](/extensibility/native-widget-integration) and [Native integration patterns](/advanced/native-integration-patterns).
+
+## Troubleshooting geometry
+
+If a control is clipped, misaligned, or missing, check the following in order:
+
+1. Confirm the container and child properties are supported by their contracts.
+2. Check whether the parent has a definite size when percentage sizing is used.
+3. Verify that the chosen renderer supports the required behavior.
+4. Reduce the layout to a small example before investigating native measurements.
+
+For deeper analysis, see [Layout engine and measurement](/advanced/layout-engine-and-measurement).

@@ -1,0 +1,60 @@
+---
+title: "Media, navigation, and native widgets"
+description: "Display images, expose links, and understand when native toolkit integration is appropriate."
+---
+
+PSX includes portable components for common media and navigation tasks. It also provides a way to integrate toolkit-specific widgets when the portable components are not enough.
+
+## Display an image
+
+Use `Image` with its `source` prop. Unlike HTML's `<img>`, PSX uses a native UI component and the selected renderer decides how to display it.
+
+```python
+from velto.ui import component, psx
+
+@component
+def ProfileImage():
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Image source="resources/base/profile.png" width="120" height="120" alt="Profile picture" />
+            <Text>Profile picture</Text>
+        </Flex>
+    """)
+```
+
+Replace the example path with an image included in your project. `width`, `height`, and `fit` control sizing and fitting according to the renderer's component contract. `alt` is a descriptive prop; do not assume every native toolkit provides browser-style accessibility behavior automatically.
+
+For application resource packaging and path resolution, see [Resources and environment](/runtime/resources-and-environment).
+
+## Show a link
+
+Use `Link` for a destination or a link-like action. Use `Button` when the user is performing an operation such as saving, deleting, or submitting.
+
+```python
+from velto.ui import component, psx
+
+@component
+def HelpLink():
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Need help?</Text>
+            <Link href="https://example.com/help">Open help center</Link>
+        </Flex>
+    """)
+```
+
+`Link` exposes `href` and `on_click`, but the actual navigation behavior depends on its renderer implementation. Consult [Link reference](/reference/ui/components/link) before relying on a particular platform behavior.
+
+## Integrate a native toolkit widget
+
+Sometimes a toolkit already provides a specialized widget that PSX does not expose as a portable component. `Native` is the integration point for these cases.
+
+For example, a Qt-only interface might need a `QWebEngineView` or a specialized plotting widget. That integration is **not portable** to Kivy or Tkinter: the widget must belong to the active toolkit and be supported by its renderer.
+
+Use native integration only when a portable PSX component cannot meet the requirement. It introduces toolkit-specific ownership, lifecycle, and compatibility considerations, so follow [Native widget integration](/extensibility/native-widget-integration) and [Native component reference](/reference/ui/components/native) rather than assuming that arbitrary widgets can be inserted unchanged.
+
+## Component details
+
+[Image](/reference/ui/components/image) · [Link](/reference/ui/components/link) · [Native](/reference/ui/components/native)
+
+Next: [Containers and scrolling](/ui/containers-and-scrolling).

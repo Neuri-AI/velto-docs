@@ -1,0 +1,16 @@
+---
+title: Flex
+description: Lay out children along a flexible axis.
+---
+
+```python
+from velto.ui import Flex
+```
+
+`Flex(*children, direction="row", wrap="nowrap", justify_content="flex-start", align_items="stretch", align_content="normal", gap=0, key=None, ref=None, **props)` accepts any number of children.
+
+```python
+Flex(Text("Today"), Button("Add"), direction="row", gap=12)
+```
+
+Read [Flex](/layout/flex) for portable layout behavior. Measurement and native geometry are backend-dependent.

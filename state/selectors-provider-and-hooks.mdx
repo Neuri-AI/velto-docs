@@ -1,0 +1,173 @@
+---
+title: "Selectors, providers, and hooks"
+description: "Connect Pydux shared state to Velto components without manually mounting a provider."
+---
+
+A store may hold many values, but each component typically needs only a few. A **selector** retrieves a particular value, and `use_selector()` subscribes the component to that selection.
+
+## First, read state without a UI
+
+Use the store created in [Slices, stores, and dispatch](/state/slices-store-and-dispatch):
+
+```python
+select_count = lambda state: state["counter"]["value"]
+print(select_count(store.get_state()))
+```
+
+A selector is an ordinary Python callable. It receives the root state and returns the part a consumer needs.
+
+For non-UI consumers, you can subscribe directly:
+
+```python
+unsubscribe = store.select(
+    select_count,
+    lambda count: print("Count:", count),
+    fire_immediately=True,
+)
+
+# Later, when you no longer need updates:
+unsubscribe()
+```
+
+## VeltoContext handles the provider
+
+In standalone PSX, a component using Pydux hooks needs an ancestor `StoreProvider`. **VeltoContext removes this manual step for the usual Velto application structure:** when the view module declares one Pydux store, it automatically provides that store to the view tree.
+
+The practical difference is important:
+
+- Import the toolkit and hooks from `velto.state`.
+- Define the store independently from your components.
+- Use `use_selector()` and `use_dispatch()` inside a `@component` function.
+- Do **not** wrap the view in `StoreProvider` when using VeltoContext's automatic integration.
+
+## Write a component using shared state
+
+Here is the component code, assuming the module has a configured `store` and a `counter_slice`:
+
+```python
+from velto.state import use_dispatch, use_selector
+from velto.ui import component, psx
+
+
+@component
+def CounterPanel():
+    count = use_selector(lambda state: state["counter"]["value"])
+    dispatch = use_dispatch()
+
+    def increment():
+        dispatch(counter_slice.actions.increment())
+
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Count: {count}</Text>
+            <Button label="Increment" on_click={increment} />
+        </Flex>
+    """)
+```
+
+The sequence is: button click → `dispatch` → reducer → updated store → selector → component update. The UI does not change the store's dictionary directly.
+
+<Note>
+The automatic provider is documented for a view module declaring **one** Pydux store. If your application has multiple stores or uses a custom PSX root, do not assume that automatic discovery covers that setup. Consult the runtime integration contract or use an explicit provider where appropriate.
+</Note>
+
+## Derived selectors
+
+Sometimes a view needs a value calculated from other values. `create_selector` caches the derived result while its inputs compare equal:
+
+```python
+from velto.state import create_selector
+
+select_count = lambda state: state["counter"]["value"]
+select_name = lambda state: state["session"]["username"]
+
+select_summary = create_selector(
+    select_name,
+    select_count,
+    lambda name, count: f"{name}: {count} clicks",
+)
+```
+
+This example assumes your store also contains a `session` slice. A derived selector does not create another copy of the underlying state; it calculates a view of existing state.
+
+## Comparisons and selective updates
+
+`store.select()` uses `shallow_equal` by default. The PSX hook `use_selector(selector, equality_fn=None)` forwards an optional equality comparator to the store. Pydux also exposes `deep_equal` and `is_identical`.
+
+Choose a focused selector rather than selecting the entire store. For example, `lambda state: state["counter"]["value"]` makes the dependency explicit and prevents unrelated state changes from triggering that subscription unnecessarily.
+
+## When is StoreProvider necessary?
+
+`StoreProvider` is part of the public API because Pydux can also be used with PSX **outside** a `VeltoContext` application. In that case, the caller supplies a store and exactly one PSX child node:
+
+```python
+from velto.state import StoreProvider
+
+root = StoreProvider(store, CounterPanel())
+```
+
+This is an **alternative manual integration**, not something to add around your normal VeltoContext view. Calling Pydux hooks without a provider (automatic or manual) raises an error.
+
+Continue with [Middleware and async workflows](/state/middleware-and-async-workflows).
+
+## Complete Velto example: two components sharing one store
+
+The normal VeltoContext path does not require manually wrapping a component in `StoreProvider`. The single module-level `store` is available for VeltoContext's documented automatic provider integration.
+
+
+```python main.py
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx
+from velto.state import configure_store, create_slice, use_dispatch, use_selector
+
+counter_slice = create_slice(
+    name="counter",
+    initial_state={"value": 0},
+    reducers={
+        "increment": lambda state, action: state.update(value=state["value"] + 1),
+        "decrement": lambda state, action: state.update(value=state["value"] - 1),
+        "add": lambda state, action: state.update(value=state["value"] + action.payload),
+    },
+)
+store = configure_store({"counter": counter_slice}, devtools=False)
+
+
+@component
+def CounterDisplay():
+    count = use_selector(lambda state: state["counter"]["value"])
+    return psx("""
+        <Text font_size="24">Shared count: {count}</Text>
+    """)
+
+
+@component
+def CounterControls():
+    dispatch = use_dispatch()
+    return psx("""
+        <Flex direction="row" gap="8px">
+            <Button label="-1" on_click={() => dispatch(counter_slice.actions.decrement())} />
+            <Button label="+1" on_click={() => dispatch(counter_slice.actions.increment())} />
+            <Button label="+5" on_click={() => dispatch(counter_slice.actions.add(5))} />
+        </Flex>
+    """)
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="16px" padding="16px">
+                <CounterDisplay />
+                <CounterControls />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+`CounterDisplay` uses `use_selector` to subscribe to just the count. `CounterControls` uses `use_dispatch` to send actions. The components do not exchange props or callbacks, and neither uses native Qt widgets directly.
+
+For standalone PSX trees without VeltoContext, `StoreProvider` remains available as an explicit integration API.

@@ -1,0 +1,317 @@
+---
+title: "Components, props, and children"
+description: "Understand how Velto components receive data, compose interfaces, and display nested content."
+---
+
+In [Your first component](/getting-started/first-component), you created `Welcome` and passed a name using `name="Alex"`.
+
+Now let's explore the ideas behind that example. You'll learn how components receive different kinds of data, how PSX Markup accesses that data, and how one component can contain another.
+
+This chapter focuses on **how components work**. For a step-by-step introduction, start with [Your first component](/getting-started/first-component).
+
+## Components are reusable pieces of an interface
+
+A component is a Python function marked with `@component`. It describes a piece of UI using PSX Markup:
+
+```python
+from velto.ui import component, psx
+
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Welcome, {name}!</Text>
+    """)
+```
+
+You use it inside another interface by writing its name as a tag:
+
+```python
+<Welcome name="Alex" />
+```
+
+The component can be used multiple times. Each use has its own props, so the same definition can display different information.
+
+## Props: pass data into a component
+
+**Props** are the inputs a component receives. You declare them as Python function parameters:
+
+```python
+@component
+def Profile(name: str, age: int):
+    return psx("""
+        <Flex direction="column" gap="4px">
+            <Text>Name: {name}</Text>
+            <Text>Age: {age}</Text>
+        </Flex>
+    """)
+```
+
+Then supply values through markup attributes. For a numeric value, define a Python variable and reference it from PSX Markup:
+
+```python
+class Demo(VeltoContext):
+    def render(self):
+        current_age = 30
+
+        return psx("""
+            <Profile name="Alex" age={current_age} />
+        """)
+```
+
+Here, `name="Alex"` supplies a quoted attribute, while `age={current_age}` refers to the Python variable `current_age`. Inside `Profile`, `{name}` and `{age}` display the values received by the component.
+
+### Literal attributes and references
+
+PSX Markup distinguishes **literal attribute values** from **references**:
+
+```xml
+<Profile name="Alex" age="30" />
+```
+
+Quoted attribute values are strings. **`age="30"` passes a Python `str`, not an `int`**, even though the component parameter is annotated as `age: int`. PSX Markup does not implicitly convert the string based on the type annotation.
+
+For example, inside `Profile`, `print(type(age))` outputs `<class 'str'>` when called with `age="30"`.
+
+If the component needs an integer, you have two options:
+
+**Pass an existing Python integer (recommended):**
+
+```python
+current_age = 30
+```
+
+```xml
+<Profile name="Alex" age={current_age} />
+```
+
+In this case, `age` is an `int` because `current_age` is an integer. PSX preserves the referenced value's type.
+
+**Convert a string explicitly in Python:**
+
+```python
+@component
+def Profile(name: str, age: str):
+    numeric_age = int(age)
+    return psx("""
+        <Text>{name} is {numeric_age} years old.</Text>
+    """)
+```
+
+This second approach is appropriate when the component intentionally accepts numeric text. Invalid numeric strings will cause `int()` to raise `ValueError`, so validate input when necessary.
+
+<Warning>
+  **Attribute values are not implicitly converted.** `age="30"` passes a string even when the parameter is annotated as `int`. Also, `age={30}` is not valid PSX Markup: use a quoted literal or a reference such as `age={current_age}`. 
+</Warning>
+
+## Complex props: dictionaries, lists, and tuples
+
+Props aren't restricted to text or numbers. A component can receive Python data structures such as dictionaries, lists, and tuples.
+
+Suppose you want to display information about a person:
+
+```python
+@component
+def Welcome(user: dict):
+    return psx("""
+        <Flex direction="column" gap="4px">
+            <Text>Welcome, {user.name}!</Text>
+            <Text>Age: {user.age}</Text>
+            <Text>First interest: {user.interests[0]}</Text>
+        </Flex>
+    """)
+```
+
+The `user` prop contains related information. In **PSX Markup**, you can access dictionary entries using property-style expressions:
+
+| PSX expression | Meaning |
+| --- | --- |
+| `{user.name}` | Reads the `name` entry |
+| `{user.age}` | Reads the `age` entry |
+| `{user.interests[0]}` | Reads the first element of the `interests` list |
+
+<Note>
+  Property-style dictionary access is specific to PSX Markup expressions. In ordinary Python, you would access a dictionary entry with `user["name"]`.
+</Note>
+
+### Approach 1: Prepare the object in Python
+
+Define your data before returning the markup:
+
+```python
+class Demo(VeltoContext):
+    def render(self):
+        user = {
+            "name": "Alex",
+            "age": 30,
+            "interests": ["Python", "Design"],
+        }
+
+        return psx("""
+            <Flex direction="column" gap="12px">
+                <Welcome user={user} />
+            </Flex>
+        """)
+```
+
+`user={user}` passes the existing Python dictionary to `Welcome`.
+
+### Approach 2: Construct the object inline
+
+You can also define the dictionary directly in the markup:
+
+```python
+class Demo(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="12px">
+                <Welcome user={{
+                    "name": "Alex",
+                    "age": 30,
+                    "interests": ["Python", "Design"]
+                }} />
+            </Flex>
+        """)
+```
+
+The double braces in `user={{...}}` have two roles:
+
+- The outer `{...}` indicates a Python expression in PSX Markup.
+- The inner `{...}` is the Python dictionary literal.
+
+This is helpful for small configurations used only once, quick experiments, or values that are easier to understand beside the component using them.
+
+You can also use nested dictionaries, lists, and tuples in supported expressions. As the structure grows, moving it to a Python variable usually improves readability.
+
+### Choosing between the two approaches
+
+| Existing Python variable | Inline expression |
+| --- | --- |
+| `user={user}` | `user={{"name": "Alex", "age": 30}}` |
+| Better for reused or substantial data | Better for short, one-off values |
+| Easy to prepare and test independently | Keeps configuration near the component |
+| Keeps markup shorter | Avoids extra variable declarations |
+
+Both approaches pass a Python object. The component does not need to know where the object was created.
+
+## Children: pass interface content into a component
+
+Props provide **data** to a component. **Children** provide **nested interface content**.
+
+You have already used children with built-in components:
+
+```python
+<Flex direction="column" gap="8px">
+    <Text>First item</Text>
+    <Text>Second item</Text>
+</Flex>
+```
+
+The two `<Text>` elements are children of `<Flex>`.
+
+The same idea applies to custom components. For example, a reusable section can accept content instead of deciding exactly which text to display.
+
+```python
+@component
+def Section(children: tuple):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            {children}
+        </Flex>
+    """)
+```
+
+Now place content between the opening and closing tags:
+
+```python
+<Section>
+    <Text>Account details</Text>
+    <Text>Manage your profile information here.</Text>
+</Section>
+```
+
+The nested `<Text>` elements are supplied as the component's `children`. The component controls their surrounding layout, while the caller decides what content to put inside.
+
+This is different from a prop such as `title="Account details"`: a title is data, whereas children can describe an entire piece of interface.
+
+Use opening and closing tags (`<Section>...</Section>`) when supplying nested content. Use the self-closing form (`<Welcome />`) when no children are needed.
+
+## Compose components instead of duplicating markup
+
+You can combine props and children to create more flexible UI pieces.
+
+For example, a section can receive a heading as a prop and its body as children:
+
+```python
+@component
+def Section(title: str, children: tuple):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>{title}</Text>
+            {children}
+        </Flex>
+    """)
+```
+
+Then reuse the same layout with different content:
+
+```python
+<Flex direction="column" gap="16px">
+    <Section title="Profile">
+        <Text>Alex</Text>
+        <Text>Software developer</Text>
+    </Section>
+    <Section title="Preferences">
+        <Text>Dark theme</Text>
+        <Text>English</Text>
+    </Section>
+</Flex>
+```
+
+`Section` owns the shared layout and heading. Each place that uses it supplies its own title and body.
+
+## Common mistakes
+
+### Forgetting `@component`
+
+A function intended to be used as a custom markup tag should be declared with `@component`:
+
+```python
+@component
+def Welcome(name: str):
+    return psx("""
+        <Text>Hello, {name}!</Text>
+    """)
+```
+
+### Passing the wrong kind of value
+
+If a component expects a dictionary, provide a dictionary rather than a string containing dictionary-like text:
+
+```python
+<Welcome user={{"name": "Alex", "age": 30, "interests": ["Python"]}} />
+```
+
+### Accessing a missing or empty value
+
+The expression `{user.interests[0]}` assumes that `interests` exists and contains at least one item. Prepare your data accordingly, or design the component to handle missing information.
+
+### Putting too much data construction into markup
+
+Inline expressions are useful for short values, but long nested objects can obscure the UI structure. Move complex data to Python variables when that makes the markup easier to understand.
+
+## Practice
+
+Try these exercises in your Velto project:
+
+1. Create a `Profile` component that accepts `name` and `age`.
+2. Replace the separate props with a `user` dictionary containing `name`, `age`, and `interests`.
+3. Render the same component twice: once with `user={user}` and once with an inline dictionary.
+4. Create a `Section` component that accepts children, then place your profile components inside it.
+
+## What you've learned
+
+Components define reusable pieces of UI. **Props** pass data into them, while **children** let callers supply nested interface content. PSX Markup supports both simple values and complex Python expressions, including dictionaries and nested collections.
+
+You can now build components that are reusable without forcing every instance to display identical content.
+
+To learn more about how custom component tags and expressions work in markup, continue to [Custom components and composition](/markup/custom-components-and-composition). For larger-scale design techniques, see [Composition patterns](/advanced/composition-patterns).

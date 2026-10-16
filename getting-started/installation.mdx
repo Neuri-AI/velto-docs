@@ -1,0 +1,177 @@
+---
+title: "Install Velto"
+description: "Prepare Python, install Velto and a native UI backend, and verify your environment."
+---
+
+Before you build an interface, you need Python, Velto, and a native UI toolkit. This page walks through those requirements and explains why each one matters.
+
+We'll install **PySide6** for the first lessons. You can explore other supported backends after your first application is running.
+
+## 1. Check Python
+
+For this guide, use **Python 3.10, 3.11, 3.12, or 3.13** on Windows, macOS, or Linux.
+
+Open a terminal and run:
+
+```bash
+python --version
+```
+
+You should see a version such as `Python 3.12.x`.
+
+<Note>
+  This guide recommends Python 3.10-3.13 to keep the framework and CLI setup compatible. Support for additional Python versions depends on the versions of Velto, the CLI, and the selected UI backend.
+</Note>
+
+If the command isn't recognized, install Python from [python.org](https://www.python.org/downloads/) and ensure your terminal can access it. On some systems the command is `python3` or `py`; substitute that command in the examples below if necessary.
+
+## 2. Create a workspace
+
+A **virtual environment** keeps the packages for one Python project separate from packages used by other projects.
+
+Create a directory for the tutorial:
+
+```bash
+mkdir my-velto-projects
+cd my-velto-projects
+python -m venv .venv
+```
+
+Activate the environment for your shell:
+
+<Tabs>
+  <Tab title="macOS / Linux">
+
+    ```bash
+    source .venv/bin/activate
+    ```
+
+  </Tab>
+  <Tab title="Windows PowerShell">
+
+    ```powershell
+    .venv\Scripts\Activate.ps1
+    ```
+
+  </Tab>
+  <Tab title="Windows CMD">
+
+    ```bat
+    .venv\Scripts\activate.bat
+    ```
+
+  </Tab>
+</Tabs>
+
+When the environment is active, `pip` installs packages into the active virtual environment instead of your system-wide Python installation.
+
+## 3. Install Velto and PySide6
+
+Install Velto with PySide6 support:
+
+```bash
+pip install "velto[pyside6]"
+```
+
+The `[pyside6]` option installs the dependencies Velto needs to create native interfaces with PySide6.
+
+Velto organizes its Python APIs into namespaces:
+
+| Import | What you'll use it for |
+| --- | --- |
+| `velto` | Application entry point, including `VeltoContext` |
+| `velto.ui` | PSX Markup, components, and UI hooks |
+| `velto.state` | Shared application state |
+| `velto.runtime` | Runtime services and resources |
+
+You only need the first two for Hello World. We'll introduce the others when you have a reason to use them.
+
+## 4. Install the CLI for the tutorial
+
+**Velto CLI** creates a project with the expected folders and startup files, so you don't have to assemble them manually.
+
+Install its desktop tooling:
+
+```bash
+pip install "velto-cli[desktop]"
+```
+
+This installs the `velto` terminal command, which is different from Python's `import velto` statement. One is a command-line program; the other makes Velto available in your Python code.
+
+Verify that the command is available:
+
+```bash
+velto --help
+```
+
+You should see the CLI's available commands. If your terminal says the command isn't found, check that your virtual environment is active.
+
+<Note>
+  You can write Velto applications without the CLI. We're using it because the beginner tutorial follows a generated project. The CLI's build, bundle, and signing workflows are explained later in [Projects and CLI](/cli/overview).
+</Note>
+
+## 5. Verify your imports
+
+Verify that Velto can be imported:
+
+```bash
+python -c "from velto import VeltoContext; from velto.ui import psx; print('Velto imports are ready')"
+```
+
+Expected output:
+
+```text
+Velto imports are ready
+```
+
+Then check PySide6:
+
+```bash
+python -c "from PySide6.QtWidgets import QApplication; print('PySide6 is ready')"
+```
+
+Expected output:
+
+```text
+PySide6 is ready
+```
+
+These commands check whether Python can import the packages. They **do not** create a window or establish that a full native application has run successfully. You'll test that in the next lesson.
+
+## Other supported backends
+
+You don't need to install these for the beginner tutorial. When you create a different kind of project, Velto provides installation options for the following backends:
+
+| Backend | Installation |
+| --- | --- |
+| PyQt6 | `pip install "velto[pyqt6]"` |
+| PyQt5 | `pip install "velto[pyqt5]"` |
+| PySide2 | `pip install "velto[pyside2]"` |
+| Kivy | `pip install "velto[kivy]"` |
+| Tkinter | `pip install velto` |
+
+Tkinter is included in many Python distributions, but may require an operating-system package. You can check its availability with `python -m tkinter`. PySide2 has more restrictive Python compatibility than the other Qt backends.
+
+Backend availability depends on your Python version, operating system, and the native toolkit you choose.
+
+## If something goes wrong
+
+<AccordionGroup>
+  <Accordion title="The terminal can't find Python">
+    Try `python3 --version` on macOS/Linux or `py --version` on Windows. If neither works, install a supported Python version and reopen your terminal.
+  </Accordion>
+  <Accordion title="pip reports No matching distribution found">
+    Check `python --version` and confirm that your selected Python version is compatible with the package. Check that the selected backend is available for your operating system and Python version.
+  </Accordion>
+  <Accordion title="ModuleNotFoundError: velto">
+    Confirm your environment is active and run `pip show velto`. Reinstall Velto in the same Python environment if necessary.
+  </Accordion>
+  <Accordion title="The velto command isn't recognized">
+    Check that the virtual environment is active and that `pip show velto-cli` reports an installation.
+  </Accordion>
+  <Accordion title="Tkinter is unavailable">
+    Run `python -m tkinter`. If it fails because Tkinter is missing, consult your operating system or Python distribution's installation instructions.
+  </Accordion>
+</AccordionGroup>
+
+Once the imports and CLI are ready, continue to [Hello World](/getting-started/hello-world). You'll create and open your first native window.

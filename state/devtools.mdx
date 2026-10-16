@@ -1,0 +1,104 @@
+---
+title: "DevTools and inspector"
+description: "Inspect dispatched actions, state changes, and history while developing with Pydux."
+---
+
+When a component displays the wrong value, it helps to answer three questions: **Which action was dispatched? What changed in the store? What state is active now?** Pydux DevTools and its local web inspector help you investigate.
+
+## Enable the development tools
+
+```python
+from velto.state import configure_store
+
+store = configure_store(
+    {"counter": counter_slice},
+    devtools=True,
+)
+```
+
+`devtools=True` is the **default** in the current `configure_store` implementation. When enabled, `inspector_auto_start=True` is also the default, so the local inspector starts automatically unless you disable that behavior.
+
+For introductory examples or production configuration, you can opt out explicitly:
+
+```python
+store = configure_store({"counter": counter_slice}, devtools=False)
+```
+
+## Open the inspector
+
+With automatic startup enabled, inspect the actual URL rather than assuming a fixed port:
+
+```python
+print(store.inspector.base_url)
+```
+
+The default address is `http://127.0.0.1:8765`. If the port is already in use, Pydux can choose another. Open the printed URL in a browser.
+
+The inspector shows dispatched actions, their payloads, state snapshots, and history. You can use it to understand which operation produced an unexpected result.
+
+## Travel through state history
+
+When DevTools is active, the store exposes `store.devtools`:
+
+```python
+store.dispatch(counter_slice.actions.increment())
+store.dispatch(counter_slice.actions.increment())
+
+store.devtools.undo()
+store.devtools.redo()
+```
+
+The API also includes `jump_to_state(index)` for selecting a recorded history position. Time travel is a debugging feature: do not use it as a replacement for ordinary application actions or business-level undo behavior.
+
+## Enable DevTools without automatically starting the server
+
+```python
+store = configure_store(
+    {"counter": counter_slice},
+    devtools=True,
+    inspector_auto_start=False,
+)
+```
+
+This keeps the DevTools tracker while preventing the web inspector from starting automatically. You can also configure `inspector_host`, `inspector_port`, and `inspector_log` when creating the store.
+
+## Keep the inspector local
+
+The inspector is a development tool that exposes application state and supports state-history controls. The default host is `127.0.0.1`, which binds to the local machine. **Do not expose the inspector as a public production service.** Disable it in production unless you have a carefully controlled development or diagnostics workflow.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| No `store.devtools` attribute | Was the store created with `devtools=False`? |
+| No `store.inspector` attribute | Was automatic startup disabled or did startup fail? |
+| The expected port is unavailable | Print `store.inspector.base_url` to see the actual port. |
+| An action appears but the UI does not update | Check the reducer result and the selector used by the component. |
+
+You now have the core Pydux workflow: [create and dispatch actions](/state/slices-store-and-dispatch), [select shared values in PSX](/state/selectors-provider-and-hooks), [handle asynchronous work](/state/middleware-and-async-workflows), and [inspect changes](/state/devtools).
+
+## Inspect state while running Velto
+
+Use the complete [Velto counter example](/state/overview), changing its store configuration to:
+
+```python
+store = configure_store(
+    {"counter": counter_slice},
+    devtools=True,
+    inspector_auto_start=True,
+)
+```
+
+Before `sys.exit(MyApp().run())`, print the inspector URL:
+
+```python
+print("Pydux inspector:", store.inspector.base_url)
+```
+
+Run the Velto application, click **+1** and **+5**, and open the printed URL. The inspector shows the actual actions dispatched by your PSX buttons and the corresponding state history.
+
+When you finish debugging, disable the inspector:
+
+```python
+store = configure_store({"counter": counter_slice}, devtools=False)
+```

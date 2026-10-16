@@ -1,0 +1,16 @@
+---
+title: GridItem
+description: Place one child in a `Grid`.
+---
+
+```python
+from velto.ui import GridItem
+```
+
+`GridItem(*children, span="auto", offset=0, key=None, ref=None, **props)` belongs directly inside `Grid` and requires one root child.
+
+```python
+GridItem(Text("A task"), span={"base": 12, "md": 6}, offset=0)
+```
+
+`span` and `offset` are interpreted against the enclosing application's verified breakpoint table. See [Grid](/layout/grid).

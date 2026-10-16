@@ -1,0 +1,341 @@
+---
+title: "Effects and refs"
+description: "Learn when to run work after rendering, clean it up, and retain values without triggering UI updates."
+---
+
+In [Events and local state](/fundamentals/events-and-local-state), you learned how `use_state` stores values and updates the interface when users interact with it.
+
+But not everything a component does belongs in its markup or in an event handler. Sometimes a component needs to interact with something **outside its rendered interface**: a subscription, a timer, or another resource that must be released when it is no longer needed.
+
+And sometimes you need to remember a value **without updating the screen** every time it changes.
+
+Velto provides two hooks for these situations:
+
+- **`use_effect`** runs work after rendering and can clean up that work later.
+- **`use_ref`** retains a mutable value across renders without scheduling a render when that value changes.
+
+These hooks solve different problems. This guide explains when to use each one, with examples that build on the components and state you already know.
+
+## Before you begin: rendering and side effects
+
+A component's `render()` output or `@component` function describes **what the interface should look like**.
+
+For example:
+
+```python
+@component
+def Greeting(name: str):
+    return psx("""
+        <Text>Hello, {name}!</Text>
+    """)
+```
+
+This component uses its input to describe a `<Text>` element. It doesn't need to open a connection, register a listener, or change anything outside the UI.
+
+A **side effect** is work that reaches beyond describing the interface. Examples include subscribing to notifications, starting a timer, or connecting to an external service.
+
+These operations often need a matching cleanup step. That's what `use_effect` is designed to coordinate.
+
+## Run work after rendering with `use_effect`
+
+The basic form is:
+
+```python
+use_effect(callback, dependencies)
+```
+
+- **`callback`** is a Python function containing the work to run.
+- **`dependencies`** identify the values the effect depends on.
+- The callback runs **after the UI commit**, rather than while the component is building its markup.
+
+Start with a component that receives a `name` prop:
+
+```python
+from velto.ui import component, psx, use_effect
+
+
+@component
+def Greeting(name: str):
+    def report_name():
+        print(f"Displayed name: {name}")
+
+    use_effect(report_name, [name])
+
+    return psx("""
+        <Text>Hello, {name}!</Text>
+    """)
+```
+
+The text is part of the rendered interface. The `print()` call is separate work performed by the effect.
+
+The dependency list `[name]` tells PSX to run the effect after the first render and again when `name` changes. If `name` stays the same, the effect does not rerun just because the component rendered again.
+
+You don't need an effect merely to **display** `name`. Interpolation such as `{name}` already handles that.
+
+## Understand dependencies
+
+Consider a component with two pieces of state:
+
+```python
+@component
+def ProfileEditor():
+    name, set_name = use_state("")
+    count, set_count = use_state(0)
+
+    def report_name():
+        print(f"Name changed to: {name}")
+
+    use_effect(report_name, [name])
+
+    def handle_name_change(value: str):
+        set_name(value)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            <Input value={name} on_change={handle_name_change} />
+            <Text>Your name is: {name}</Text>
+            <Text>Count: {count}</Text>
+            <Button on_click={increment}>Increment</Button>
+        </Flex>
+    """)
+```
+
+Here, the effect depends on `name`, not `count`. The component can render again because `count` changed without that change being a reason to repeat the name-related work.
+
+This is the central idea of dependencies: **an effect should respond to the values its work actually uses**.
+
+The example requires these imports:
+
+```python
+from velto.ui import component, psx, use_effect, use_state
+```
+
+### Choosing dependencies
+
+The dependency argument is optional. These three forms have different behavior:
+
+| Call | When the effect runs |
+| --- | --- |
+| `use_effect(callback)` | After the initial render and every subsequent render |
+| `use_effect(callback, [])` | After the initial render only, until the component is unmounted |
+| `use_effect(callback, [name])` | After the initial render and when `name` changes |
+
+PSX compares scalar dependencies (`None`, `bool`, `int`, `float`, `str`, and `bytes`) of the same type by value. Other objects are compared by identity, not by recursively comparing their contents. For example, creating a new dictionary on each render counts as a changed dependency even if its entries look identical.
+
+A useful way to decide what belongs in the dependency list is to ask:
+
+*Which changing values would make the effect's existing work outdated?*
+
+For a subscription to a selected topic, that might be `topic`. For work associated with a user account, that might be `user_id`.
+
+Avoid adding an effect simply to copy one state value into another. If you can calculate a value directly from props or state while rendering, you usually don't need an effect.
+
+## Clean up work when it is no longer needed
+
+Some side effects acquire a resource. If you subscribe to notifications, for example, you must unsubscribe when the component stops using that subscription.
+
+An effect can return a **cleanup function**:
+
+```python
+@component
+def TopicListener(topic: str):
+    def connect():
+        print(f"Subscribe to: {topic}")
+
+        def cleanup():
+            print(f"Unsubscribe from: {topic}")
+
+        return cleanup
+
+    use_effect(connect, [topic])
+
+    return psx("""
+        <Text>Listening to: {topic}</Text>
+    """)
+```
+
+This example uses `print()` to make the lifecycle visible. In a real application, `connect()` would register a listener and `cleanup()` would remove it.
+
+The lifecycle is:
+
+1. The component renders.
+2. The effect subscribes to the current topic.
+3. When the effect must be replaced because its dependency changes, the previous subscription is cleaned up.
+4. The effect establishes the subscription for the new topic.
+5. When the component is removed, its active effect is cleaned up.
+
+For example, if `topic` changes from `"news"` to `"sports"`, the component should not keep listening to both topics by accident.
+
+<Warning>
+  If an effect creates a resource that needs releasing, return its cleanup function. Without cleanup, listeners, timers, or connections may remain active longer than intended.
+</Warning>
+
+## Keep values across renders with `use_ref`
+
+State is useful when a value affects what the user sees. But sometimes you only need to remember something for later use.
+
+`use_ref(initial)` gives you an object with a mutable `.current` attribute:
+
+```python
+from velto.ui import component, psx, use_ref, use_state
+
+
+@component
+def ClickTracker():
+    count, set_count = use_state(0)
+    last_clicked_count = use_ref(0)
+
+    def increment():
+        last_clicked_count.current = count
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            <Text>Count: {count}</Text>
+            <Button on_click={increment}>Increment</Button>
+        </Flex>
+    """)
+```
+
+Each time the button is clicked:
+
+- `last_clicked_count.current` remembers the count *before* the click.
+- `set_count(...)` changes state so the displayed number updates.
+
+The ref survives subsequent renders of the same component instance. Changing `.current` **does not itself request a rerender**.
+
+In this example, the ref is internal bookkeeping. We intentionally don't display its value.
+
+### State and refs are not interchangeable
+
+| `use_state` | `use_ref` |
+| --- | --- |
+| Stores a value used by the UI | Stores a mutable value that can be kept outside rendering |
+| Provides a value and setter | Provides an object with `.current` |
+| Updating through the setter schedules an update | Assigning `.current` does not schedule an update |
+| Best for text, selections, counters, and other visible data | Best for bookkeeping or retaining resource handles |
+
+If a value needs to appear on screen and change immediately when updated, **use state**. A ref is not a shortcut for state. PSX also supports refs attached to native nodes, but this introductory example focuses on retaining ordinary values.
+
+## Why not use a normal local variable?
+
+Compare these two patterns:
+
+```python
+@component
+def Example():
+    last_value = 0
+    # ...
+```
+
+```python
+@component
+def Example():
+    last_value = use_ref(0)
+    # ...
+```
+
+The ordinary local variable is assigned again whenever the component function runs. A ref retains its `.current` value across those renders.
+
+This makes refs useful for values that need to outlive one execution of the component function but don't belong in the visible UI.
+
+## Use effects and refs together
+
+These hooks often complement each other:
+
+- An **effect** starts and stops work tied to the component lifecycle.
+- A **ref** can retain a handle or other mutable value associated with that work.
+
+For example, a component that integrates an external service might need to keep a reference to its active connection while an effect manages when to connect and disconnect.
+
+You don't need both hooks by default. Start with the simplest option that fits the job: props for incoming data, state for visible changes, event callbacks for user actions, and effects or refs only when their specific behavior is needed.
+
+## Hooks must be called in a stable order
+
+Like `use_state`, `use_effect` and `use_ref` participate in a component's hook lifecycle.
+
+Call hooks **at the top level of your component**, in the same order on every render.
+
+Don't do this:
+
+```python
+@component
+def Example(enabled: bool):
+    if enabled:
+        use_ref(0)  # Incorrect: this hook may be skipped.
+
+    return psx("""
+        <Text>Example</Text>
+    """)
+```
+
+Instead, always call the hook and conditionally use its value:
+
+```python
+@component
+def Example(enabled: bool):
+    counter = use_ref(0)
+
+    if enabled:
+        # Work with counter when needed.
+        pass
+
+    return psx("""
+        <Text>Example</Text>
+    """)
+```
+
+Changing the order, number, or kind of hooks between renders can raise `HookOrderError`.
+
+The same rule applies to other hooks: don't call them inside loops, event handlers, or conditional branches that may execute differently from one render to the next.
+
+## Common mistakes
+
+### Running side effects while rendering
+
+Avoid registering listeners or opening connections directly in the component body. Rendering may happen more than once, so that work can accidentally be repeated. Use an effect for lifecycle-managed work.
+
+### Using an effect for a value you can already calculate
+
+If you want to display a greeting based on `name`, write `<Text>Hello, {name}!</Text>`. You don't need another state variable and an effect just to construct that text.
+
+### Expecting a ref assignment to update the screen
+
+This assignment:
+
+```python
+counter_ref.current += 1
+```
+
+changes the stored value, but it doesn't schedule a rerender. If the user should see the new number, use `use_state`.
+
+### Calling hooks conditionally
+
+Even if a conditional branch seems unlikely to change, placing a hook inside it can break hook order. Declare hooks consistently at the top level.
+
+## Practice
+
+Try these exercises in your Velto project:
+
+1. Add an effect to your `NameEditor` component that prints the current name after it changes.
+2. Give the effect a dependency list containing `name`. Add an unrelated counter and observe which updates are relevant to the effect.
+3. Add a ref that remembers the name from the most recent button click. Notice that assigning `.current` does not update the interface.
+4. Write a small effect with a cleanup function that prints a message when the effect is replaced or the component is removed.
+
+You can use `print()` to observe behavior before working with actual subscriptions or external resources.
+
+## What you've learned
+
+You now have three distinct tools for component behavior:
+
+- **Event callbacks** respond to actions such as clicks and input changes.
+- **`use_state`** stores values that participate in rendering the UI.
+- **`use_effect`** coordinates work after rendering, including cleanup.
+- **`use_ref`** retains mutable values without triggering renders.
+
+Keep hook calls in a stable order, and choose each tool for the problem it solves.
+
+Next, learn how to show different interface content based on changing values in [Conditional and dynamic UI](/fundamentals/conditional-and-dynamic-ui).

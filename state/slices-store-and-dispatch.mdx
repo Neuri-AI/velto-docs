@@ -1,0 +1,167 @@
+---
+title: "Slices, stores, and dispatch"
+description: "Create a shared store, describe changes with actions, and update state predictably."
+---
+
+In [Shared state with Pydux](/state/overview), you saw a store as a shared whiteboard. Now you will create one, change its values, and read the result.
+
+## 1. Define a slice
+
+A **slice** names one part of your state and defines the operations allowed to change it.
+
+```python
+from velto.state import create_slice
+
+counter_slice = create_slice(
+    name="counter",
+    initial_state={"value": 0},
+    reducers={
+        "increment": lambda state, action: state.update(
+            value=state["value"] + 1
+        ),
+        "add": lambda state, action: state.update(
+            value=state["value"] + action.payload
+        ),
+    },
+)
+```
+
+`initial_state` is the starting value. The `reducers` dictionary maps action names to functions that update the state.
+
+Pydux automatically creates action creators such as `counter_slice.actions.increment()` and `counter_slice.actions.add(5)`. You do not need to construct their action type strings yourself.
+
+## 2. Configure the store
+
+```python
+from velto.state import configure_store
+
+store = configure_store(
+    {"counter": counter_slice},
+    devtools=False,
+)
+```
+
+The dictionary key `counter` becomes a top-level key in the store. Here, `devtools=False` keeps this first example focused on state; the [DevTools guide](/state/devtools) explains the default development tooling.
+
+## 3. Dispatch actions
+
+```python
+print(store.get_state())
+# {'counter': {'value': 0}}
+
+store.dispatch(counter_slice.actions.increment())
+store.dispatch(counter_slice.actions.add(5))
+
+print(store.get_state())
+# {'counter': {'value': 6}}
+```
+
+`increment()` creates an action without additional data. `add(5)` creates an action whose `payload` is `5`. The reducer receives that payload through `action.payload`.
+
+Calling an action creator alone does **not** change the store. You must dispatch the action it returns.
+
+## 4. Organize several slices
+
+As an application grows, keep unrelated state in separate slices:
+
+```python
+session_slice = create_slice(
+    name="session",
+    initial_state={"username": "Guest"},
+    reducers={
+        "rename": lambda state, action: state.update(
+            username=action.payload
+        ),
+    },
+)
+
+store = configure_store(
+    {
+        "counter": counter_slice,
+        "session": session_slice,
+    },
+    devtools=False,
+)
+
+store.dispatch(session_slice.actions.rename("Alex"))
+print(store.get_state()["session"]["username"])  # Alex
+```
+
+The store holds both sections; each slice handles its own actions.
+
+## What a reducer should do
+
+A reducer should calculate the next state from the current state and the action. In `create_slice`, Pydux passes a **copy of the slice state** to the reducer, so you may update that draft in place or return a replacement state.
+
+Avoid network requests, file access, or other side effects in reducers. Do not call `store.dispatch()` from inside a reducer: Pydux rejects recursive dispatch while a reducer is running.
+
+## Common mistakes
+
+| Problem | Correction |
+| --- | --- |
+| `counter_slice.actions.increment()` has no visible effect | Pass the action to `store.dispatch(...)`. |
+| A reducer reads `action.payload`, but the action has no payload | Call the generated action creator with a value. |
+| Different features all modify one large slice | Split them into slices with clear responsibilities. |
+| A reducer performs slow I/O | Move that work into an application service or a thunk. |
+
+Next, learn how a PSX component reads shared values in [Selectors, providers, and hooks](/state/selectors-provider-and-hooks).
+
+## Put the slice to work in Velto
+
+The store is not just an isolated Python object. Here is a complete native Velto application that uses your slice from two PSX components:
+
+
+```python main.py
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx
+from velto.state import configure_store, create_slice, use_dispatch, use_selector
+
+counter_slice = create_slice(
+    name="counter",
+    initial_state={"value": 0},
+    reducers={
+        "increment": lambda state, action: state.update(value=state["value"] + 1),
+        "decrement": lambda state, action: state.update(value=state["value"] - 1),
+        "add": lambda state, action: state.update(value=state["value"] + action.payload),
+    },
+)
+store = configure_store({"counter": counter_slice}, devtools=False)
+
+
+@component
+def CounterDisplay():
+    count = use_selector(lambda state: state["counter"]["value"])
+    return psx("""
+        <Text font_size="24">Shared count: {count}</Text>
+    """)
+
+
+@component
+def CounterControls():
+    dispatch = use_dispatch()
+    return psx("""
+        <Flex direction="row" gap="8px">
+            <Button label="-1" on_click={() => dispatch(counter_slice.actions.decrement())} />
+            <Button label="+1" on_click={() => dispatch(counter_slice.actions.increment())} />
+            <Button label="+5" on_click={() => dispatch(counter_slice.actions.add(5))} />
+        </Flex>
+    """)
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="16px" padding="16px">
+                <CounterDisplay />
+                <CounterControls />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+Try changing the initial value to `10` or adding another action. The markup does not need to know how the reducer calculates the next state. It only dispatches an action and selects the resulting value.

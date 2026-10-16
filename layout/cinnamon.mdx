@@ -1,0 +1,48 @@
+---
+title: "Cinnamon"
+description: "Understand the layout engine integrated into PSX."
+---
+
+**Cinnamon is the mathematical layout engine integrated into PSX.** It helps determine the size and position of supported interface elements before their geometry is applied by a native renderer.
+
+As a Velto developer, you usually work with `Flex`, sizing properties, and other documented components—not with Cinnamon APIs directly.
+
+## What Cinnamon does
+
+A layout engine needs to answer practical questions: How much width does a child receive? Where should the next widget be placed? How do padding and gaps affect the available area?
+
+Cinnamon provides the calculation layer for supported layout behavior. The renderer remains responsible for native widget creation, measurement integration, and applying geometry.
+
+```python
+from velto.ui import component, psx
+
+@component
+def SummaryCard():
+    return psx("""
+        <Flex direction="column" width="320px" gap="12px" padding="16px">
+            <Text font_size="20">Summary</Text>
+            <Text>Three tasks remaining</Text>
+            <Button label="View tasks" />
+        </Flex>
+    """)
+```
+
+Here, the developer describes the layout. The layout engine and renderer handle their respective responsibilities behind the scenes.
+
+## What Cinnamon is not
+
+Cinnamon is **not** a separate application framework and **not** a browser CSS engine. PSX Markup does not automatically inherit CSS properties, CSS Grid, DOM layout behavior, or every browser length unit.
+
+It also does not guarantee that every renderer supports every layout feature. A portable property contract and a native backend implementation are separate requirements.
+
+## When should you learn more?
+
+Most applications need only the public layout guides:
+
+- [Flex layout](/layout/flex) for rows and columns.
+- [Sizing, spacing, and alignment](/layout/sizing-spacing-and-alignment) for dimensions and placement.
+- [Native geometry](/layout/native-geometry) for backend behavior.
+
+If you are developing a renderer, debugging geometry, or contributing to PSX itself, continue with [Layout engine and measurement](/advanced/layout-engine-and-measurement).
+
+**Takeaway:** Write layout in PSX Markup; Cinnamon is the engine behind the supported calculations, not another language you need to learn.

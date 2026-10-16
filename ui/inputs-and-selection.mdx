@@ -1,0 +1,105 @@
+---
+title: "Inputs and selection"
+description: "Collect text, choices, toggles, and numbers with native PSX controls."
+---
+
+Choose an input based on **the kind of answer you need**. A name needs a text field; a yes/no preference needs a toggle; a choice from known options needs a selection control.
+
+## Collect text
+
+Use `Input` for a short value and `TextArea` for longer, multiline content.
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def ContactForm():
+    name, set_name = use_state("")
+    message, set_message = use_state("")
+
+    def change_name(value: str):
+        set_name(value)
+
+    def change_message(value: str):
+        set_message(value)
+
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Your name</Text>
+            <Input value={name} placeholder="Enter your name" on_change={change_name} />
+            <Text>Message</Text>
+            <TextArea value={message} placeholder="Write a message" on_change={change_message} />
+            <Text>Preview: {name}</Text>
+        </Flex>
+    """)
+```
+
+The input's `value` comes from state. Its `on_change` callback receives the new value and updates that state. For a complete introduction to this pattern, see [Events and local state](/fundamentals/events-and-local-state).
+
+`Input` also supports `read_only`, `password`, and `on_submit` for the situations those props describe. Refer to the component contract for exact behavior.
+
+## Choose the right selection control
+
+| Need | Component | Typical use |
+| --- | --- | --- |
+| One independent yes/no answer | `Checkbox` | Accept a preference |
+| An immediate on/off setting | `Switch` | Enable notifications |
+| One choice from visible alternatives | `RadioGroup` with `Radio` | Select a mode |
+| One choice from a dropdown | `Select` | Choose a category |
+| A value on a continuous or stepped range | `Slider` | Adjust intensity |
+| A number with explicit bounds and increments | `SpinBox` | Set a quantity |
+
+## Toggle a preference
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def Preferences():
+    notifications, set_notifications = use_state(True)
+
+    def change_notifications(checked: bool):
+        set_notifications(checked)
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Notifications</Text>
+            <Switch checked={notifications} on_change={change_notifications} label="Enable notifications" />
+            <Text>{notifications ? "Enabled" : "Disabled"}</Text>
+        </Flex>
+    """)
+```
+
+The control reports a boolean change. The same general state pattern applies to `Checkbox`, but choose the control that communicates the intended interaction most clearly.
+
+## Adjust a number
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def VolumeSetting():
+    volume, set_volume = use_state(40)
+
+    def change_volume(value: int):
+        set_volume(value)
+
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Volume: {volume}</Text>
+            <Slider value={volume} min="0" max="100" step="5" on_change={change_volume} />
+        </Flex>
+    """)
+```
+
+For exact numeric entry, prefer `SpinBox`. For a bounded range that users adjust visually, prefer `Slider`.
+
+## Selection data and validation
+
+`Select` uses an `options` prop; `RadioGroup` contains `Radio` children. Their option shapes and accepted value types are defined by their individual component contracts. Do not assume that every control returns a string, or that every backend supports identical interaction details.
+
+## Component details
+
+[Input](/reference/ui/components/input) · [TextArea](/reference/ui/components/text-area) · [Checkbox](/reference/ui/components/checkbox) · [Switch](/reference/ui/components/switch) · [RadioGroup](/reference/ui/components/radio-group) · [Select](/reference/ui/components/select) · [Slider](/reference/ui/components/slider) · [SpinBox](/reference/ui/components/spin-box)
+
+Next: [Media, navigation, and native widgets](/ui/media-navigation-and-native).

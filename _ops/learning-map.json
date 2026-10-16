@@ -1,0 +1,5 @@
+{
+  "levels": ["Beginner", "Intermediate", "Advanced"],
+  "rules": ["A page introduces only concepts listed after all of its prerequisites.", "Every project stage preserves and tests the preceding stage.", "Advanced pages require the relevant Fundamentals, Markup, UI, State, or Runtime pages."],
+  "milestones": {"beginner": ["getting-started/hello-world", "getting-started/first-component", "getting-started/first-interaction"], "intermediate": ["markup/conditional-rendering", "layout/flex", "state/slices-store-and-dispatch", "runtime/velto-context"], "advanced": ["extensibility/plugins-and-discovery", "advanced/vnode-and-reconciliation", "advanced/renderer-architecture"]}
+}

@@ -1,0 +1,16 @@
+---
+title: TextArea
+description: Render a controlled multi-line text input.
+---
+
+```python
+from velto.ui import TextArea
+```
+
+`TextArea(value="", placeholder="", font_size=14, enabled=True, read_only=False, on_change=None, key=None, ref=None, **props)` has no children.
+
+```python
+TextArea(value=notes, placeholder="Notes", on_change=set_notes)
+```
+
+Keep `value` controlled by state. Native selection, wrapping, and sizing behavior are backend-specific.

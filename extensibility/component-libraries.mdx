@@ -1,0 +1,6 @@
+---
+title: "Component libraries"
+description: "Register reusable PSX components in an explicit registry."
+---
+
+Create a `ComponentRegistry`, then call `register_component(registry, name, constructor, namespace=...)`. Registries are instance-scoped. `builtin_component_registry()` returns a fresh default registry rather than a global mutable registry.

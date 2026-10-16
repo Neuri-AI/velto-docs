@@ -1,0 +1,13 @@
+{
+  "source": "local facade __all__ exports",
+  "status": "baseline audited",
+  "record_schema": {"import_path": "approved facade namespace", "source": "underlying public package export", "evidence": "facade or documentation test", "compatibility": "renderer-specific for UI", "documentation": "reference route"},
+  "namespaces": {
+    "velto": ["VeltoContext", "__version__"],
+    "velto.runtime": ["AppMetadata", "EngineContainer", "ExecutionMode", "FrameworkNotAvailableError", "PlatformDetector", "PlatformType", "QyroEngineError", "ResourceNotFoundError", "SettingsNotFoundError", "get_resource", "is_frozen", "load_build_settings"],
+    "velto.state": ["Action", "Dispatch", "Middleware", "PyDuxDevTools", "PyDuxInspectorServer", "Reducer", "Selector", "Slice", "Store", "StoreProvider", "combine_reducers", "configure_store", "create_async_thunk", "create_selector", "create_slice", "create_thunk_middleware", "deep_equal", "devtools_middleware", "is_identical", "shallow_equal", "start_inspector", "use_dispatch", "use_selector"],
+    "velto.ui": ["App", "Badge", "Button", "Checkbox", "ComponentAdapter", "ComponentDefinition", "ComponentRegistry", "Divider", "DuplicateKeyError", "Flex", "Fragment", "Grid", "GridItem", "HookOrderError", "Image", "Input", "InvalidChildError", "Link", "MainThreadBridge", "MarkupSyntaxError", "Native", "NativeOwnership", "NativeWidget", "PLUGIN_ENTRY_POINT_GROUP", "PSXError", "Plugin", "PluginAPI", "ProgressBar", "Radio", "RadioGroup", "Reactive", "ReactiveBinding", "Ref", "RendererAdapterRegistry", "RendererCapabilities", "RendererCapabilityError", "RendererConfigurationError", "Scroll", "Select", "Slider", "Spacer", "SpinBox", "Switch", "Text", "TextArea", "ThreadViolationError", "VNode", "builtin_component_registry", "component", "connect", "connect_qyro", "create_element", "load_plugins", "native_widget", "psx", "register_adapter", "register_component", "renderer_capabilities", "use_effect", "use_ref", "use_state"]
+  },
+  "reference_routes": {"velto": "reference/facade-and-compatibility", "velto.runtime": "reference/runtime", "velto.state": "reference/state", "velto.ui": "reference/ui/*", "components": "reference/ui/components/<component>"},
+  "component_verification": {"backend_compatibility": "Every component page states renderer-specific constraints.", "example_evidence": "velto/tests/test_documentation_examples.py", "source_contract": "PSX public constructors and local tests"}
+}

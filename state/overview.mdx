@@ -1,0 +1,159 @@
+---
+title: "Shared state with Pydux"
+description: "Understand when to share application state and how Pydux connects it to PSX components."
+---
+
+A component's `use_state` is a good starting point: the component owns a value and updates its own interface. But what if a sidebar changes the selected project and a separate content view must react to that change?
+
+You could pass values and callbacks through each component between them. For a small tree, that is often the simplest solution. When unrelated parts of an application need the same data, **Pydux** provides a shared store.
+
+## Why shared state becomes difficult
+
+Imagine an application with a sidebar, a user form, a user list, and a header. The form changes the current user, and the other components need to show the updated information.
+
+Without a shared store, you can keep that value in a common parent and pass it down as props. You may also pass callbacks back through intermediate components to request updates. This is called **prop drilling**. It is perfectly reasonable for small component trees, but it can become hard to maintain when many distant components need the same data.
+
+![Comparison of prop drilling through a component tree without Pydux and shared store access with Pydux](/images/pydux-shared-state.png)
+
+*Without Pydux, intermediate components may forward values and callbacks they never use. With Pydux, components can read selected shared values and dispatch actions without forwarding those values through every parent. VeltoContext supplies the provider automatically when its view module declares one Pydux store.*
+
+Pydux does **not** remove the component hierarchy or make props obsolete. It offers another way to manage information that genuinely needs to be shared. The store remains the source of truth; actions request changes, reducers update state, and selectors deliver the values that consumers need.
+
+## A shared whiteboard
+
+Imagine a whiteboard that every part of your application can read, but that changes only through agreed rules:
+
+| Term | Meaning |
+| --- | --- |
+| **Store** | The shared whiteboard containing the current application state. |
+| **Slice** | A named section of that state, such as `projects` or `session`. |
+| **Action** | A description of something that happened, optionally carrying data. |
+| **Dispatch** | Sending an action to the store. |
+| **Reducer** | The rule that calculates the next state from an action. |
+| **Selector** | A function that reads the particular value a consumer needs. |
+
+```text
+User interaction
+      ↓
+dispatch(action)
+      ↓
+    reducer
+      ↓
+  updated store
+      ↓
+selector detects a relevant change
+      ↓
+component receives the selected value
+```
+
+The key idea is **one source of truth for shared data**. Components do not need to coordinate copies of the same value manually.
+
+## Local or shared state?
+
+Use `use_state` for values owned by one component, such as an expanded panel or a temporary input. Use Pydux when multiple areas of the application need consistent access to the same value, such as the active project, authenticated session information, or a shared task collection.
+
+Do not move every value into a global store. A text field that nobody else needs can remain local.
+
+## Your first store
+
+This example runs as ordinary Python. It does not need a GUI:
+
+```python
+from velto.state import configure_store, create_slice
+
+counter = create_slice(
+    name="counter",
+    initial_state={"value": 0},
+    reducers={
+        "increment": lambda state, action: state.update(
+            value=state["value"] + 1
+        ),
+    },
+)
+
+store = configure_store({"counter": counter}, devtools=False)
+
+print(store.get_state())  # {'counter': {'value': 0}}
+store.dispatch(counter.actions.increment())
+print(store.get_state())  # {'counter': {'value': 1}}
+```
+
+Read this from top to bottom: the slice defines what can change, the store holds the current value, and `dispatch` asks the reducer to apply a change.
+
+## How Pydux fits into Velto
+
+Pydux manages shared state; Qyro manages the application runtime. Velto exposes both through a unified public API: `velto.state` provides the Pydux toolkit and PSX state hooks, while `VeltoContext` handles the application lifecycle.
+
+**You do not normally create a `StoreProvider` yourself in a VeltoContext application.** When a view module declares one Pydux store, `VeltoContext` applies the provider automatically. Your components can then call `use_selector()` and `use_dispatch()` directly.
+
+The next guides show the store and its reducers separately from the UI. This separation makes it easier to understand and test shared state without starting a window.
+
+<Note>
+`StoreProvider` remains available through `velto.state` for custom PSX trees outside the normal VeltoContext integration. It is not an additional setup step in the standard Velto workflow.
+</Note>
+
+## Learning path
+
+Start with [Slices, stores, and dispatch](/state/slices-store-and-dispatch) to change state. Continue with [Selectors, providers, and hooks](/state/selectors-provider-and-hooks) to display shared values in PSX. Then explore [Middleware and async workflows](/state/middleware-and-async-workflows) and [DevTools and inspector](/state/devtools) when you need them.
+
+## Build your first shared-state Velto application
+
+This complete example uses **VeltoContext**, **PSX Markup**, and **Pydux together**, rather than demonstrating the store only in a terminal. The display and buttons are separate components. They share state without passing a count prop or callback between them.
+
+
+```python main.py
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx
+from velto.state import configure_store, create_slice, use_dispatch, use_selector
+
+counter_slice = create_slice(
+    name="counter",
+    initial_state={"value": 0},
+    reducers={
+        "increment": lambda state, action: state.update(value=state["value"] + 1),
+        "decrement": lambda state, action: state.update(value=state["value"] - 1),
+        "add": lambda state, action: state.update(value=state["value"] + action.payload),
+    },
+)
+store = configure_store({"counter": counter_slice}, devtools=False)
+
+
+@component
+def CounterDisplay():
+    count = use_selector(lambda state: state["counter"]["value"])
+    return psx("""
+        <Text font_size="24">Shared count: {count}</Text>
+    """)
+
+
+@component
+def CounterControls():
+    dispatch = use_dispatch()
+    return psx("""
+        <Flex direction="row" gap="8px">
+            <Button label="-1" on_click={() => dispatch(counter_slice.actions.decrement())} />
+            <Button label="+1" on_click={() => dispatch(counter_slice.actions.increment())} />
+            <Button label="+5" on_click={() => dispatch(counter_slice.actions.add(5))} />
+        </Flex>
+    """)
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" gap="16px" padding="16px">
+                <CounterDisplay />
+                <CounterControls />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+Click **+1**, **-1**, or **+5** to update the same value. `CounterControls` dispatches actions; `CounterDisplay` subscribes to the selected count. Both components are rendered by Velto.
+
+<Note>The single `store` is declared in the view module. Velto's documented automatic integration supplies its provider without an explicit `StoreProvider` wrapper.</Note>

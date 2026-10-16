@@ -1,0 +1,16 @@
+---
+title: Slider
+description: Render a numeric range control.
+---
+
+```python
+from velto.ui import Slider
+```
+
+`Slider(value=0, min=0, max=100, step=0, orientation="horizontal", enabled=True, on_change=None, key=None, ref=None, **props)` has no children.
+
+```python
+Slider(value=priority, min=1, max=5, step=1, on_change=set_priority)
+```
+
+`on_change` receives the updated numeric value; event cadence is backend-specific.

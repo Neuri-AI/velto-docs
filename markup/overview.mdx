@@ -1,0 +1,43 @@
+---
+title: "PSX Markup"
+description: "Learn the syntax Velto uses to describe native interfaces, and choose the right guide for your task."
+---
+
+PSX Markup is Velto's language for describing user interfaces with tags, attributes, text, and references to Python values. Its syntax may look familiar if you have seen HTML or JSX, but **it does not create a browser DOM**. PSX constructs virtual nodes (VNodes), which its renderer uses to create and update native widgets.
+
+You have already encountered markup in [Hello World](/getting-started/hello-world) and [Fundamentals](/fundamentals/components-props-children). This section is your guide to **writing the language correctly**, not a second introduction to components or state.
+
+## A markup example
+
+```python
+from velto.ui import component, psx
+
+@component
+def Greeting(name: str):
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Text>Hello, {name}!</Text>
+            <Button>Continue</Button>
+        </Flex>
+    """)
+```
+
+Read it from the outside inward: `<Flex>` arranges the children; `<Text>` displays a message; `{name}` inserts the current Python value; and `<Button>` creates an interactive control. A handler can be attached later with `on_click={handler}`.
+
+The markup lives inside a Python component. You can use Python values and functions directly by referencing their names in braces.
+
+## Where to go
+
+| I want to… | Read |
+| --- | --- |
+| Write tags, text, nesting, and fragments | [Syntax and elements](/markup/syntax-and-elements) |
+| Pass Python values, props, and event handlers | [Values and expressions](/markup/values-and-expressions) |
+| Show or hide content | [Conditional rendering](/markup/conditional-rendering) |
+| Render data collections | [Lists and keys](/markup/lists-and-keys) |
+| Check supported syntax and common errors | [Language reference](/markup/language-reference) |
+
+## One useful rule
+
+Write your interface using PSX tags and keep application logic in Python. Use markup expressions for straightforward display decisions, and Python functions for more complex behavior.
+
+Next: [Syntax and elements](/markup/syntax-and-elements).

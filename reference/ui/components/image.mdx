@@ -1,0 +1,16 @@
+---
+title: Image
+description: Render an image from a source supported by the renderer.
+---
+
+```python
+from velto.ui import Image
+```
+
+`Image(source, fit="contain", width=None, height=None, alt="", enabled=True, key=None, ref=None, **props)` is a leaf component. `source` is required; supported paths and URI forms depend on the active renderer.
+
+```python
+Image("assets/logo.png", width=64, height=64, alt="FocusBoard logo")
+```
+
+`alt` is metadata; accessibility behavior is implemented by the backend.

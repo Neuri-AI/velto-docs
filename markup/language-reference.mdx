@@ -1,0 +1,17 @@
+## Arrow functions
+
+Arrow functions create callbacks directly in markup expressions. They support zero or one parameter and a single expression body.
+
+```jsx
+<Button label="Settings" on_click={() => navigate("settings")} />
+<Input value={name} on_change={(value) => set_name(value)} />
+```
+
+| Form | Description |
+| --- | --- |
+| `() => expression` | Callback without parameters |
+| `(parameter) => expression` | Callback receiving one argument |
+
+The body runs when the callback is called, not when the markup is rendered. Use an existing Python function reference (`on_click={handler}`) when no argument adaptation is needed. Multi-parameter arrow functions and statement blocks are not supported.
+
+See [Values and expressions](/markup/values-and-expressions#create-callbacks-with-arrow-functions) for a complete example.

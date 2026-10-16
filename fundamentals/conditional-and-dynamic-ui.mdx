@@ -1,0 +1,230 @@
+---
+title: "Conditional and dynamic UI"
+description: "Make Velto interfaces respond to changing data by showing, hiding, and switching content."
+---
+
+In [Events and local state](/fundamentals/events-and-local-state), you learned to update a counter and display the new value. That is already a **dynamic interface**: the text changes when the state changes.
+
+Real applications also need to answer questions such as:
+
+- Should a message appear when a task is finished?
+- Should the user see a loading message or the result?
+- What should a screen display when there is no data?
+
+In this lesson, you'll use **state and conditional PSX Markup** to make those decisions. We'll focus on building useful behavior; the complete syntax rules belong in [Conditional rendering](/markup/conditional-rendering).
+
+## Dynamic text: the simplest case
+
+Not every change requires adding or removing an element. Sometimes the same element only needs to display a new value.
+
+```python
+from velto.ui import component, psx, use_state
+
+
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            <Text>Clicks: {count}</Text>
+            <Button on_click={increment}>Add click</Button>
+        </Flex>
+    """)
+```
+
+The `<Text>` element stays in the interface. Its content changes because `{count}` refers to the current state value.
+
+This is the first distinction to remember: **updating content** is not the same as **conditionally including an element**.
+
+## Show content only when it is needed
+
+Suppose you want a confirmation message to appear after a button is clicked.
+
+```python
+@component
+def Confirmation():
+    confirmed, set_confirmed = use_state(False)
+
+    def confirm():
+        set_confirmed(True)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            <Button on_click={confirm}>Confirm</Button>
+            {confirmed && <Text>Confirmed!</Text>}
+        </Flex>
+    """)
+```
+
+Read this part as: **when `confirmed` is true, include the `<Text>` element**.
+
+```xml
+{confirmed && <Text>Confirmed!</Text>}
+```
+
+Initially, `confirmed` is `False`, so the confirmation message is absent. Clicking the button updates state, the component renders again, and the message appears.
+
+Notice that the expression belongs **inside the markup**. It isn't an ordinary Python `and` expression, and it isn't a separate `<If>` component.
+
+## Choose between two outcomes
+
+Sometimes hiding an element isn't enough. You want to display **one of two alternatives**.
+
+```python
+@component
+def ConnectionStatus():
+    connected, set_connected = use_state(False)
+
+    def toggle_connection():
+        set_connected(lambda current: not current)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            {connected
+                ? <Text>Connected</Text>
+                : <Text>Disconnected</Text>}
+            <Button on_click={toggle_connection}>Toggle connection</Button>
+        </Flex>
+    """)
+```
+
+The conditional expression has three parts:
+
+| Part | Meaning |
+| --- | --- |
+| `connected` | The condition to check |
+| `? <Text>Connected</Text>` | What to show when it is true |
+| `: <Text>Disconnected</Text>` | What to show when it is false |
+
+Only the selected branch contributes its element to the interface.
+
+The setter uses `lambda current: not current` to toggle based on the latest state value. You encountered this form of state update in [Events and local state](/fundamentals/events-and-local-state).
+
+## Build a useful empty state
+
+An **empty state** is what your application shows when there's nothing to display yet. For example, a notes screen might show a helpful message before the first note is added.
+
+We can practice the idea without introducing list rendering:
+
+```python
+@component
+def NotesPreview():
+    has_notes, set_has_notes = use_state(False)
+
+    def add_sample_note():
+        set_has_notes(True)
+
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="12px">
+            {has_notes
+                ? <Text>Your first note is ready.</Text>
+                : <Text>No notes yet. Add one to get started.</Text>}
+            <Button on_click={add_sample_note}>Add sample note</Button>
+        </Flex>
+    """)
+```
+
+Here, the state is deliberately simple: one Boolean value controls which message is visible. In a real notes application, the condition would usually come from the note data itself.
+
+**The principle stays the same:** your interface should explain the current situation, including when there is no content.
+
+## Conditions can use your existing data
+
+You don't always need to create a new state variable just for a condition. If a value already tells you what to display, use it.
+
+For example, a component can receive a status through props:
+
+```python
+@component
+def SaveStatus(status: str):
+    return psx("""
+        <Flex direction="column" align_items="flex-start" gap="8px">
+            {status == "saved"
+                ? <Text>Changes saved.</Text>
+                : <Text>Changes not saved yet.</Text>}
+        </Flex>
+    """)
+```
+
+The component doesn't own `status`; it receives it from its parent. It still renders the appropriate content whenever that prop changes.
+
+This gives you a useful design choice:
+
+- Use **props** when another component already owns the information.
+- Use **local state** when this component owns the changing information.
+
+You don't need an effect to choose between these messages. The result can be determined directly while rendering.
+
+## Conditional UI is not the same as disabling an action
+
+Imagine a form that should not be submitted until its required fields are complete. There are two different interface decisions:
+
+**Conditional rendering** decides whether an element is included at all. **Disabled state** keeps an element visible but prevents its usual interaction.
+
+Use whichever communicates the intended behavior. A missing button and a visible disabled button can mean different things to users.
+
+We'll explore component-specific props, including availability and behavior, in [Build interfaces](/ui/overview). This lesson focuses on choosing **what content to show**.
+
+## What happens when the condition changes?
+
+When a callback updates state, PSX schedules the component to be evaluated again. The resulting interface description is compared with the previous one, and the native UI is updated accordingly.
+
+You don't need to manually remove a `<Text>` element when a condition becomes false. Describe the interface for the **current state** and let Velto update it.
+
+There is one important topic we are intentionally leaving for the next lesson: when elements are added, removed, or reordered, **their identity matters**. This becomes especially important for stateful components and lists. You'll learn about that in [Keys and identity](/fundamentals/keys-and-identity).
+
+## Common mistakes
+
+### Trying to use Python's `if` statement inside markup
+
+This isn't Python source code:
+
+```xml
+<Flex>
+    if confirmed:
+        <Text>Confirmed!</Text>
+</Flex>
+```
+
+Use supported PSX conditional expressions inside braces instead:
+
+```xml
+<Flex>
+    {confirmed && <Text>Confirmed!</Text>}
+</Flex>
+```
+
+### Creating extra state for something already known
+
+If you already have a `status` prop, don't create another Boolean state value solely to remember whether `status == "saved"`. Derive the condition from `status` directly unless you have a separate reason to store it.
+
+### Confusing a condition with an event handler
+
+A conditional expression determines **what to render**. An event handler determines **what to do when something happens**. In the examples above, the button callback changes state; the conditional expression uses that state to choose the visible content.
+
+## Practice: a small status panel
+
+Build a `StatusPanel` component that starts in an inactive state and has a button to toggle it.
+
+1. Store a Boolean with `use_state(False)`.
+2. Display `Inactive` initially and `Active` after the first click.
+3. Add a second message that appears **only while active**.
+4. Toggle the state again and confirm that the extra message disappears.
+
+Use `<Flex>`, `<Text>`, and `<Button>`; you don't need a new layout system or a shared store.
+
+## What you've learned
+
+Dynamic interfaces are built by describing the UI for the **current data and state**:
+
+- Interpolate values to update existing text.
+- Use `&&` to include content only when a condition is true.
+- Use `? :` to choose between two alternatives.
+- Derive conditions from existing props or state instead of duplicating information.
+- Let PSX update the rendered interface when state changes.
+
+For the exact conditional expression grammar and its restrictions, see [Conditional rendering](/markup/conditional-rendering). To understand how changing UI preserves or replaces component instances, continue to [Keys and identity](/fundamentals/keys-and-identity).

@@ -1,0 +1,16 @@
+---
+title: Badge
+description: Render a compact status label.
+---
+
+```python
+from velto.ui import Badge
+```
+
+`Badge(label="", variant="neutral", appearance="filled", size="medium", shape="rounded", enabled=True, key=None, ref=None, **props)` is text-only and accepts no child content.
+
+```python
+Badge("Open", variant="success")
+```
+
+Variants, shapes, and exact visual tokens are rendered by the selected backend. See [text, actions, and feedback](/ui/text-actions-and-feedback).

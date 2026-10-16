@@ -1,0 +1,267 @@
+---
+title: "Keys and identity"
+description: "Understand how Velto keeps dynamic items and their component state associated with the right data."
+---
+
+In [Conditional and dynamic UI](/fundamentals/conditional-and-dynamic-ui), you learned to show different content as application state changes. Dynamic lists introduce another question: **when items move, how does Velto know which existing component belongs to which item?**
+
+The answer is **keys**.
+
+A key gives an item a stable identity among its siblings. PSX uses that identity while updating the interface so that reordering a list does not accidentally associate an existing component with the wrong data.
+
+## Why identity matters
+
+Imagine a notes list:
+
+1. Buy groceries
+2. Review pull request
+3. Call Alex
+
+Now imagine moving *Call Alex* to the top. The note is still the same note; only its position has changed.
+
+If an interface identifies items only by their positions, the first component might be reused for *Call Alex* even though it previously represented *Buy groceries*. That becomes especially problematic when a row has local state, such as an expanded/collapsed setting.
+
+With stable keys, PSX can associate each item with its previous component instance even after the order changes.
+
+## Give each item a stable key
+
+Suppose your notes are stored as Python dictionaries:
+
+```python
+notes = [
+    {"id": "note-101", "title": "Buy groceries"},
+    {"id": "note-102", "title": "Review pull request"},
+    {"id": "note-103", "title": "Call Alex"},
+]
+```
+
+Each note has a unique `id` that stays the same if the note moves.
+
+When generating elements from this collection, use that ID as the key:
+
+```python
+@component
+def NotesList(notes: list[dict]):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            {notes.map((note) =>
+                <Text key={note.id}>{note.title}</Text>
+            )}
+        </Flex>
+    """)
+```
+
+The `key={note.id}` attribute is not text displayed to the user. It tells PSX which item the element represents.
+
+The `.map()` expression here is **PSX Markup syntax** handled by its static source transformation; it is not a method on Python's built-in `list` type. For its full syntax and restrictions, see [Lists and keys](/markup/lists-and-keys).
+
+## What happens when items move?
+
+Consider these two orders:
+
+| Before | After |
+| --- | --- |
+| `note-101` — Buy groceries | `note-103` — Call Alex |
+| `note-102` — Review pull request | `note-101` — Buy groceries |
+| `note-103` — Call Alex | `note-102` — Review pull request |
+
+The IDs do not change. PSX matches existing keyed children to the new list by their keys rather than treating the first, second, and third positions as their identities.
+
+For compatible elements, this lets the reconciler retain the existing native instance while changing its position. The PSX test suite explicitly checks that keyed reordering moves existing native handles without destroying them.
+
+A key does not guarantee that every possible change preserves an instance: if an element changes to an incompatible type, PSX may need to replace it. Keys help it identify the *same item*, not force incompatible elements to be reused.
+
+## Why using the list index is a problem
+
+An index tells you **where an item is**, not **which item it is**.
+
+Suppose the first note uses key `0`, the second uses key `1`, and the third uses key `2`. After inserting a new note at the beginning, all the old notes have different positions. Their keys no longer describe their original identities.
+
+That can lead to state following a position instead of the intended note.
+
+**Use an ID that belongs to the data**, such as a database ID or a unique identifier assigned when the item is created. Do not generate a fresh ID every time the component renders; that would also change the item's identity on every update.
+
+## Keys must be unique among siblings
+
+Keys are scoped to the children of the same parent. Two siblings cannot share the same key:
+
+```python
+@component
+def DuplicateNotes():
+    return psx("""
+        <Flex direction="column">
+            <Text key="same">First note</Text>
+            <Text key="same">Second note</Text>
+        </Flex>
+    """)
+```
+
+PSX rejects duplicate sibling keys.
+
+There is an important distinction between two validation paths:
+
+- **Ordinary sibling reconciliation** raises `DuplicateKeyError` for duplicate keys.
+- **A `.map()` expression** validates its generated list before reconciliation and raises `MarkupSyntaxError` for a missing, invalid, or duplicate mapped key.
+
+Both are errors, but they do **not** always use the same exception type.
+
+Keys may be reused under *different parents* because sibling uniqueness is the rule.
+
+## Mapped items require valid keys
+
+For PSX's compiled `.map()` syntax, each generated element must have a key that is a **string or integer**. A boolean is not accepted as a mapped key.
+
+For example, this is incomplete:
+
+```python
+@component
+def NotesList(notes: list[dict]):
+    return psx("""
+        <Flex direction="column">
+            {notes.map((note) =>
+                <Text>{note.title}</Text>
+            )}
+        </Flex>
+    """)
+```
+
+Each generated `<Text>` needs a stable key. Add `key={note.id}` to fix it.
+
+The requirement applies to elements produced by `.map()` even if the list happens to contain only one item today.
+
+## Keys and local component state
+
+Keys become particularly useful when each list item is its own component.
+
+```python
+from velto.ui import component, psx, use_state
+
+
+@component
+def NoteRow(title: str):
+    expanded, set_expanded = use_state(False)
+
+    def toggle():
+        set_expanded(lambda current: not current)
+
+    return psx("""
+        <Flex direction="column" gap="4px">
+            <Button on_click={toggle}>{title}</Button>
+            {expanded && <Text>Details for: {title}</Text>}
+        </Flex>
+    """)
+
+
+@component
+def NotesList(notes: list[dict]):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            {notes.map((note) =>
+                <NoteRow key={note.id} title={note.title} />
+            )}
+        </Flex>
+    """)
+```
+
+When you expand one note and then reorder the notes, the stable key helps PSX keep the corresponding `NoteRow` instance—and its `expanded` state—associated with the same note.
+
+Notice that the key is on **`<NoteRow>`**, the repeated component. Giving a key only to an element *inside* `NoteRow` would not identify the rows in the parent's list.
+
+## What happens when an item is removed?
+
+Removing a note is a **state update**, not a manual widget-destruction operation. You update the collection that describes which notes should exist; PSX takes care of updating the native interface.
+
+The sequence is:
+
+1. An event handler updates the list stored in `use_state`.
+2. The component renders again using the updated list.
+3. During **reconciliation**, PSX compares the new keyed children with the previously mounted children.
+4. A key that no longer appears identifies an item that must be **unmounted**. PSX detaches and destroys the corresponding native instance through the renderer, and performs the component's lifecycle cleanup.
+
+You do **not** need to find the native widget and call its destruction method yourself.
+
+### Try it: remove a note
+
+The following example begins with three notes. Click **Remove** beside any note to remove it from the interface.
+
+```python
+from velto.ui import component, psx, use_state
+
+
+@component
+def RemovableNotes():
+    notes, set_notes = use_state([
+        {"id": "note-101", "title": "Buy groceries"},
+        {"id": "note-102", "title": "Review pull request"},
+        {"id": "note-103", "title": "Call Alex"},
+    ])
+
+    def remove_note(note_id: str):
+        set_notes(
+            lambda current: [
+                note for note in current if note["id"] != note_id
+            ]
+        )
+
+    return psx("""
+        <Flex direction="column" gap="12px" align_items="flex-start">
+            <Text>Notes: {notes.length}</Text>
+            {notes.map((note) =>
+                <Flex key={note.id} direction="row" gap="8px" align_items="center">
+                    <Text>{note.title}</Text>
+                    <Button on_click={() => remove_note(note.id)}>Remove</Button>
+                </Flex>
+            )}
+        </Flex>
+    """)
+```
+
+The important line is the state update inside `remove_note()`. It creates a new list without the selected note. The `.map()` expression then produces fewer keyed children, allowing PSX to identify the removed row.
+
+The `key` belongs on the outer `<Flex>` generated for each note, because those are the repeated siblings that PSX must reconcile.
+
+### Does unmounting free memory?
+
+Unmounting is the point where PSX **releases its ownership of the component's active UI resources**. Its reconciliation lifecycle disposes event bindings, clears attached refs, runs effect cleanup functions, and asks the renderer to destroy the corresponding native handle.
+
+That does **not** guarantee immediate memory recovery. The actual lifetime of Python objects and native resources also depends on the backend, any references still held elsewhere, and the relevant memory-management mechanisms.
+
+For example, if your own code retains a reference to a native object, removing the component from the UI does not necessarily make that object immediately collectible.
+
+For a focused explanation of effect cleanup, see [Effects and refs](/fundamentals/effects-and-refs). Backend-specific destruction and memory-management details belong in the advanced lifecycle and reconciliation documentation.
+
+If a note is later reintroduced with the same key *after its previous component has been unmounted*, its old local state is not restored automatically. A key preserves identity among currently reconciled items; it is not persistent storage.
+
+## Common mistakes
+
+**Using a position as the key.** The same position may represent a different item after insertions or reordering. Prefer stable IDs.
+
+**Using a changing value as the key.** A title that users can edit is usually a poor key. Editing it would change the identity.
+
+**Generating a new key on every render.** Random or freshly generated IDs prevent PSX from recognizing the previous item.
+
+**Putting the key inside the repeated component.** The parent needs keys on the sibling elements it is reconciling.
+
+**Assuming every key error is `DuplicateKeyError`.** Compiled `.map()` has its own earlier validation and reports invalid or duplicate mapped keys as `MarkupSyntaxError`.
+
+## Practice
+
+Using the notes from this lesson:
+
+1. Give each note a stable `id` and render it with `key={note.id}`.
+2. Reorder the notes without changing their IDs. Check that the same note remains associated with the same key.
+3. Replace the `<Text>` with a `NoteRow` component that has an `expanded` state. Expand a row, then reorder the list.
+4. Try the **Remove** buttons above. Confirm that the remaining notes retain their original IDs.
+5. Deliberately reuse an ID in the mapped list and inspect the error.
+
+## What you've learned
+
+- **Keys identify items, not positions.**
+- Keys must be unique among siblings, and compiled `.map()` requires valid string or integer keys for every generated element.
+- Stable keys help PSX preserve compatible native instances and component-local state when items move.
+- Removing an item from state causes PSX to unmount its component; a key does not preserve its state indefinitely.
+- Unmounting initiates cleanup and native destruction, but immediate memory recovery is not guaranteed.
+
+This page explains **why** keys matter. For the complete syntax of list expressions, visit [Lists and keys](/markup/lists-and-keys). For a hands-on application, you'll build a dynamic notes list in [FocusBoard: Dynamic list](/projects/focusboard-stage-04-dynamic-list).
+
+Next, explore the PSX Markup section, starting with [Markup overview](/markup/overview).

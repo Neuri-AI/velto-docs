@@ -1,0 +1,73 @@
+---
+title: "Text, actions, and feedback"
+description: "Display information, offer actions, and communicate status in PSX Markup."
+---
+
+Most interfaces need three things: content people can read, actions they can take, and feedback that explains what happened. PSX provides separate components for each role.
+
+## Display text and trigger an action
+
+Use `Text` for readable content and `Button` for an action the user initiates.
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def SavePanel():
+    saved, set_saved = use_state(False)
+
+    def save():
+        set_saved(True)
+
+    return psx("""
+        <Flex direction="column" gap="12px" align_items="flex-start">
+            <Text bold>Profile settings</Text>
+            <Text>Save your changes when you're ready.</Text>
+            <Button on_click={save}>Save changes</Button>
+            {saved && <Text>Changes saved.</Text>}
+        </Flex>
+    """)
+```
+
+The handler changes state; Velto updates the rendered interface. There is no need to create or remove native widgets manually.
+
+`Text` can also be styled with props such as `font_size`, `bold`, `italic`, `color`, and `align`. Use styling to establish hierarchy, not as a substitute for clear wording.
+
+## Choose the appropriate feedback component
+
+| Component | Use it when… | Example |
+| --- | --- | --- |
+| `Text` | You need a message or explanation | “Changes saved.” |
+| `Badge` | You need a short status label | “Draft”, “Active” |
+| `ProgressBar` | You want to show task progress | Upload completion |
+| `Divider` | You need to separate related groups visually | Settings sections |
+
+### A compact status panel
+
+```python
+from velto.ui import component, psx
+
+@component
+def UploadSummary(progress: int):
+    return psx("""
+        <Flex direction="column" gap="8px">
+            <Text>Uploading files</Text>
+            <Badge>In progress</Badge>
+            <ProgressBar value={progress} min="0" max="100" />
+            <Divider />
+            <Text>Keep this window open until the upload finishes.</Text>
+        </Flex>
+    """)
+```
+
+The `ProgressBar` represents a numeric range. When the amount of work cannot be measured, consult its `indeterminate` prop in the [ProgressBar reference](/reference/ui/components/progress-bar).
+
+## Practical guidelines
+
+Use a `Button` for an operation, not a `Text` element that merely looks clickable. Prefer concise, specific labels such as “Save changes” over “Submit” when the action can be named. Use a `Badge` for a short status rather than a long explanation, and accompany progress with text when users need to know what is happening.
+
+## Component details
+
+[Text](/reference/ui/components/text) · [Button](/reference/ui/components/button) · [Badge](/reference/ui/components/badge) · [ProgressBar](/reference/ui/components/progress-bar) · [Divider](/reference/ui/components/divider)
+
+Next: [Inputs and selection](/ui/inputs-and-selection).

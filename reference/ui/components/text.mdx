@@ -1,0 +1,18 @@
+---
+title: Text
+description: Render a portable text value.
+---
+
+```python
+from velto.ui import Text
+```
+
+`Text(value, font_size=16, bold=False, italic=False, color=None, align="left", enabled=True, key=None, ref=None, **props)` renders text. `value` is required and is the component's only content; do not pass children.
+
+Use `key` for identity in a list and `ref` when a supported renderer exposes a native handle. Text appearance is implemented by each renderer, so exact typography and color support vary by backend.
+
+```python
+Text("FocusBoard", font_size=24, bold=True)
+```
+
+See [text, actions, and feedback](/ui/text-actions-and-feedback) for usage patterns.

@@ -1,0 +1,213 @@
+---
+title: "Values and expressions"
+description: "Pass props, interpolate text, access Python values, and bind callbacks with PSX Markup."
+---
+
+Attributes configure components; expressions connect PSX Markup to Python values and functions. This guide covers literal attributes, interpolation, references, and event handlers—including arrow functions.
+
+For state and re-rendering, see [Events and local state](/fundamentals/events-and-local-state).
+
+## Literal attributes and Python values
+
+```jsx
+<Flex direction="column" gap="12px">
+    <Text>Hello</Text>
+</Flex>
+```
+
+Quoted attributes are literal strings. For example, `direction="column"` passes the string `"column"`. A custom component's Python type annotation does not automatically convert `count="3"` to an integer.
+
+Use braces to pass a Python value:
+
+```python
+from velto.ui import component, psx
+
+@component
+def TaskHeading(title: str):
+    return psx("""
+        <Text value={title} />
+    """)
+```
+
+`value={title}` passes the value of the Python parameter. `value="title"` would pass the literal word `title`.
+
+To interpolate a value into text, place it between braces:
+
+```jsx
+<Text>Current task: {title}</Text>
+```
+
+You do not need a Python f-string: PSX handles interpolation in the markup.
+
+## Access Python names directly
+
+```python
+from velto.ui import component, psx
+
+@component
+def Welcome(name: str):
+    greeting = "Good morning"
+
+    return psx("""
+        <Text>{greeting}, {name}!</Text>
+    """)
+```
+
+The markup can reference parameters and local variables available where it is authored. A missing name raises an error rather than silently producing an empty value.
+
+### Access members and mapping values
+
+```python
+from velto.ui import component, psx
+
+@component
+def TaskSummary(task: dict):
+    return psx("""
+        <Text>{task.title}</Text>
+    """)
+```
+
+When `task` is a mapping, `task.title` accesses its `"title"` entry. Dotted expressions also support public object members. Indexing is available in supported expressions, while member names beginning with `_` are not accessible through markup.
+
+## Pass an existing Python callback
+
+Use a function reference when an event handler already has the expected signature:
+
+```python
+from velto.ui import component, psx
+
+@component
+def SaveAction():
+    def save():
+        print("Saved")
+
+    return psx("""
+        <Button label="Save" on_click={save} />
+    """)
+```
+
+`on_click={save}` passes the function; it does not execute `save()` during rendering. The callback runs when the button is clicked.
+
+Other events may provide an argument. For example, `Input.on_change` receives the updated text:
+
+```python
+from velto.ui import component, psx
+
+@component
+def NameEditor():
+    def changed(value: str):
+        print(value)
+
+    return psx("""
+        <Input on_change={changed} />
+    """)
+```
+
+For the available events and their argument types, consult the [component reference](/reference/overview).
+
+## Create callbacks with arrow functions
+
+An arrow function defines a short callback directly inside a markup expression. Its body is evaluated **when the callback is invoked**, not when the interface is rendered.
+
+The most common form takes no parameters:
+
+```jsx
+<Button label="Settings" on_click={() => navigate("settings")} />
+```
+
+Read it in three parts:
+
+- `()` declares a callback with no parameters.
+- `=>` separates the parameters from the expression body.
+- `navigate("settings")` runs when the click handler is invoked.
+
+### Pass arguments to a handler
+
+Suppose your sidebar receives a function for changing the active view:
+
+```python
+from collections.abc import Callable
+
+from velto.ui import component, psx
+
+@component
+def Sidebar(setter: Callable[[str], None]):
+    def navigate(view: str):
+        print(f"Navigating to {view}")
+        setter(view)
+
+    return psx("""
+        <Flex direction="column" padding="16px" gap="12px">
+            <Text font_size="20">Navigation</Text>
+            <Button label="Home" on_click={() => navigate("home")} />
+            <Button label="Projects" on_click={() => navigate("projects")} />
+            <Button label="Settings" on_click={() => navigate("settings")} />
+        </Flex>
+    """)
+```
+
+Each button provides its own callback. Clicking **Settings** invokes `navigate("settings")`, which calls `setter("settings")`. The arrow function can access `navigate` from its enclosing Python component.
+
+**Why not write `on_click={navigate("settings")}`?** That expression calls `navigate` while the markup is being evaluated and passes its return value to `on_click`. The event expects a callable instead.
+
+### Receive an event value
+
+Arrow functions can also declare one parameter. This is useful when you want to transform or forward the value an event supplies:
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def NameEditor():
+    name, set_name = use_state("")
+
+    return psx("""
+        <Flex direction="column" gap="12px">
+            <Input value={name} on_change={(value) => set_name(value)} />
+            <Text>Hello, {name}!</Text>
+        </Flex>
+    """)
+```
+
+Here, `value` is the updated text received from `on_change`. Because the arrow simply forwards that value, you can shorten it to:
+
+```jsx
+<Input value={name} on_change={set_name} />
+```
+
+Choose the direct reference when the function already matches the event signature. Use an arrow when you need to pass additional arguments or adapt a value.
+
+### Arrow function syntax and limits
+
+| Syntax | Meaning |
+| --- | --- |
+| `() => navigate("home")` | Zero-argument callback |
+| `(value) => set_name(value)` | One-argument callback |
+| `on_click={save}` | Existing Python function reference |
+| `on_change={set_name}` | Existing setter passed directly |
+
+PSX Markup currently supports **zero or one parameter** in an arrow function, with **a single expression body**. Multi-statement blocks and multiple parameters are not supported in this syntax. For validation, branching across several statements, or more involved behavior, write a named Python function and reference it from markup.
+
+## Other expressions in braces
+
+PSX Markup also supports selected expressions for comparisons, indexing, and conditional content:
+
+```jsx
+{ready && <Text>Ready</Text>}
+{ready ? <Text>Ready</Text> : <Text>Waiting</Text>}
+```
+
+See [Conditional rendering](/markup/conditional-rendering) for conditional expressions and [Lists and keys](/markup/lists-and-keys) for rendering collections. For complex calculations, compute the result in Python and reference it in the markup.
+
+## Common mistakes
+
+| Written | Problem | Better choice |
+| --- | --- | --- |
+| `value="name"` | Passes the literal string | `value={name}` |
+| `on_click="save"` | Passes a string instead of a callable | `on_click={save}` |
+| `on_click={save()}` | Invokes the function while rendering | `on_click={save}` |
+| `on_click={navigate("home")}` | Invokes navigation immediately | `on_click={() => navigate("home")}` |
+| `{unknown}` | References a name that does not exist | Define or pass the name |
+| `count="3"` | Passes a string to a custom component | Pass an integer variable: `count={count}` |
+
+Next: [Conditional rendering](/markup/conditional-rendering).

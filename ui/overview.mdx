@@ -1,0 +1,26 @@
+---
+title: "UI guides"
+description: "Choose and combine PSX components to build everyday native interfaces."
+---
+
+You already know how to write [PSX Markup](/markup/overview) and respond to user input. These guides help you choose **which component to use for a particular UI task**.
+
+A Velto interface is assembled from components such as `Text`, `Button`, `Input`, and `Flex`. The active renderer creates the corresponding native widgets. You use the same PSX Markup syntax regardless of the toolkit, although individual component features and native behavior can vary.
+
+## Find the right guide
+
+| You want to… | Read |
+| --- | --- |
+| Display information, provide actions, or show status | [Text, actions, and feedback](/ui/text-actions-and-feedback) |
+| Collect text, choices, or numeric values | [Inputs and selection](/ui/inputs-and-selection) |
+| Display images, offer links, or integrate a toolkit widget | [Media, navigation, and native widgets](/ui/media-navigation-and-native) |
+| Group content and make an area scrollable | [Containers and scrolling](/ui/containers-and-scrolling) |
+| Control sizing, alignment, and responsive arrangements | [Layout guides](/layout/overview) |
+
+## How to use these guides
+
+Each guide starts with a common task, shows PSX Markup in a Python component, and explains the component choices. It does **not** list every property or event: those details belong in the [Component reference](/reference/ui/components/button).
+
+For example, a compact information panel might use `Text` for a heading, `Badge` for a status, and `Button` for an action. A form adds `Input` and a change handler; a longer form might sit inside `Scroll`.
+
+Start with the smallest set of components that solves your task. Introduce more complex layouts or native toolkit integration only when you need them.

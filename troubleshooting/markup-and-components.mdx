@@ -1,0 +1,12 @@
+---
+title: Markup and components
+description: Diagnose PSX Markup and component errors.
+---
+
+Runtime `psx()` templates resolve only names supplied through `scope`; they do not evaluate arbitrary Python. Use quoted literals for literal attributes and references for dynamic values.
+
+```python
+psx('<Text color="blue">{title}</Text>', scope={"title": title})
+```
+
+For authored static markup, place literal `psx("...")` in a `@component` body. Review [runtime templates](/markup/runtime-templates-and-security) and [diagnostics](/markup/diagnostics-and-source-maps).
