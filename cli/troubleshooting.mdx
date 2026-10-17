@@ -1,6 +1,43 @@
 ---
 title: "CLI troubleshooting"
-description: "Diagnose templates, dependencies, and platform packaging failures."
+description: "Diagnose failures by identifying the stage, its inputs, and its responsible subsystem."
 ---
 
-Confirm the command is `qyro`, inspect generated dependencies, and verify the selected binding is installed. See the known boilerplate blocker before treating an initialized project as a certified Velto example.
+The fastest way to diagnose a Velto CLI failure is to identify **which stage failed**. Template resolution, Python source execution, PyInstaller freezing, installer creation and code signing depend on different inputs and tools. Repeating `velto init` rarely fixes a frozen binary or signing failure.
+
+## Find the failing boundary
+
+| Symptom | Likely boundary | First checks |
+| --- | --- | --- |
+| No usable project created | `velto init` | Target/framework selection, template availability, destination permissions |
+| Source app will not launch | `velto start` | Generated entry point, environment, GUI dependency, runtime settings |
+| Source works, frozen app fails | `velto build` | Hidden imports, native libraries, Qt plugins, resources, optimization exclusions |
+| Frozen app works, installer fails | `velto bundle` | Package tool, release settings, missing assets, invalid paths |
+| Installer/binary is unsigned | `velto sign` | Certificate, platform tooling, identity, `sign.json` |
+| Runtime cannot read packaged files | Protected resource/runtime resolution | Package path, runtime module, encryption and resource lookup |
+
+## Initialization is not manual project construction
+
+`velto init` downloads and configures a boilerplate. If a generated entry point or configuration is missing, first determine whether template retrieval or generation failed. Do **not** replace the generated project with an unrelated Hello World: that masks the original failure and may introduce a different file layout.
+
+## Source versus frozen behavior
+
+If `velto start` works but the frozen executable does not, the application logic may be fine. Compare the source environment with the frozen layout. PyInstaller may miss dynamically imported modules or required native plugins; aggressive exclusions may delete functionality the UI depends on. Disable optimizations incrementally and test `onedir` first.
+
+## Preflight checks
+
+```bash
+velto bundle --check
+velto sign --check --platform windows
+velto sign --check --platform mac
+```
+
+These commands validate prerequisites without creating packages or signing artifacts. They are useful **after** a build exists and before a release operation. They do not test the behavior of every screen in your application.
+
+## Signing and protected resource failures
+
+A signing error is not a runtime secrets error. Verify that `settings/sign.json` is present **on the signing machine** and that certificates and platform tools are accessible. For resource-protection failures, verify the native build toolchain and the `.velto/` artifacts inside the frozen layout; never fix such failures by shipping plaintext secrets.
+
+## Where to continue
+
+See [Create and run](/cli/create-and-run) for scaffold/source boundaries, [Build and freeze](/cli/build-and-freeze) for frozen artifacts, [Bundle and sign](/cli/bundle-and-sign) for platform tooling, and [Protected resources](/cli/protected-resources) for encrypted packages. For PSX rendering errors, use [Markup troubleshooting](/troubleshooting/markup-and-components) rather than treating them as CLI issues.

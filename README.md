@@ -1,16 +1,25 @@
-# Velto Public Documentation (Mintlify)
+# Velto CLI configuration documentation — expanded edition
 
-**Status:** F5.5 APPROVED / IMPLEMENTATION NOT STARTED.
+This bundle **continues** the previous `velto-cli-editorial-revision.zip` instead of replacing the documentation with unrelated tutorials.
 
-This directory (`docs/public/`) is the canonical home for all **public-facing, Mintlify-compatible `.mdx` developer documentation** on the repository's `develop` branch.
+## Sources
 
-**READ FIRST:**
-- [Normative F5.5 contract](../architecture/f5-5-public-documentation-contract.md)
-- [Gate status, evidence and future-agent handoff](../architecture/f5-5-public-documentation-progress.md)
-- [PSX roadmap](../roadmap.md)
+- `Neuri-AI/Velto-CLI` `release`: `README.md`, `docs/configuration.md`; previously checked parser, command modules and `pyproject.toml`.
+- `Neuri-AI/qyro` `release`: `qyro/adapters/settings/json_settings.py`, `qyro/client/velto_context.py`, `qyro/container.py`, `qyro/adapters/telemetry/sentry_hook.py`, `qyro/adapters/telemetry/console_hook.py`, `qyro/adapters/resources/protected_bundle.py`, `qyro/adapters/resources/filesystem_resources.py`.
+- User-provided generated/project JSON snapshots: `base.json`, `windows.json`, `linux.json`, `mac.json`, `release.json`.
+- Prior Qyro documentation uploaded by user used for background only, not current command naming.
 
-Do not use outdated feature branches, historical example snippets or the discussion's standalone starter archive as authoritative API documentation. Verify all public API claims on the current `develop` code and tests; pin the immutable SHA, document only supported behavior, and link complete, reproducible, CI-tested application examples.
+## Files changed
 
-Planned entry points: `docs.json`, `introduction.mdx`, `getting-started/`, `learn/`, `components/`, `api/`, `guides/`, `concepts/`, `examples/`.
+- `cli/configuration-files.mdx`: extensive field-level reference and five exact supplied JSON examples.
+- `cli/telemetry.mdx`: verified flat `sentry_dsn` contract and exception-hook selection.
+- `cli/protected-resources.mdx`: build/Engine mechanism distinction and integrity mechanism.
+- `cli/build-and-freeze.mdx`, `cli/bundle-and-sign.mdx`, `cli/secrets-and-protection.mdx`, `cli/overview.mdx`: relevant configuration explanations, links and caveats.
+- `runtime/settings-and-configuration.mdx`: runtime-specific settings implementation and precedence.
+- `docs.json`: preserved from the preceding reviewed ZIP.
 
-**No Mintlify build, public page, API census or runnable example is certified merely by creating this directory.** G1 audits source before pages are published.
+## Verification limitations
+
+Sources were inspected statically from the named `release` branches; commands and frozen artifacts were not integration-tested. The user-provided Qyro Settings Builder URL was not reachable for direct live UI inspection here, so its exact controls and form schema were not asserted. Repository READMEs confirm the general external editor/export workflow.
+
+**Import paths and instructions are for Velto CLI (`velto`), not the legacy `qyro` console command.**

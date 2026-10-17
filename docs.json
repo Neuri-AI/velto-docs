@@ -83,19 +83,14 @@
       {
         "group": "Projects and CLI",
         "pages": [
-          "projects/overview",
-          "projects/focusboard-stage-01-hello",
-          "projects/focusboard-stage-02-components",
-          "projects/focusboard-stage-03-interaction",
-          "projects/focusboard-stage-04-dynamic-list",
-          "projects/focusboard-stage-05-layout",
-          "projects/focusboard-stage-06-shared-state",
-          "projects/focusboard-stage-07-runtime-services",
-          "projects/focusboard-stage-08-distribution",
           "cli/overview",
           "cli/create-and-run",
           "cli/build-and-freeze",
           "cli/bundle-and-sign",
+          "cli/configuration-files",
+          "cli/protected-resources",
+          "cli/secrets-and-protection",
+          "cli/telemetry",
           "cli/troubleshooting"
         ]
       },

@@ -1,6 +1,88 @@
 ---
 title: "Component libraries"
-description: "Register reusable PSX components in an explicit registry."
+description: "Reuse components and understand explicit name resolution with ComponentRegistry."
 ---
 
-Create a `ComponentRegistry`, then call `register_component(registry, name, constructor, namespace=...)`. Registries are instance-scoped. `builtin_component_registry()` returns a fresh default registry rather than a global mutable registry.
+A **component library** is a collection of reusable UI building blocks. You might publish a design system containing status indicators, form sections, or dashboard cards. Most such libraries only need ordinary PSX components; they do not need custom renderers or plugin discovery.
+
+## First, separate reuse from registration
+
+**Reuse** means importing and calling a component from Python code. **Registration** means associating a name with a constructor so a PSX template resolver can find it. These are related but different operations.
+
+A registry is like a directory: the entry `acme.Status` points to a constructor. The directory does not create the component immediately, nor does it install a native widget.
+
+## What a component registry contains
+
+The underlying PSX API provides `ComponentDefinition`, `ComponentRegistry`, `builtin_component_registry()`, and `register_component()`.
+
+| API | Responsibility |
+| --- | --- |
+| `ComponentDefinition` | Holds a name, callable constructor, and optional `ComponentContract` |
+| `ComponentRegistry` | Owns named definitions for one explicitly supplied registry |
+| `builtin_component_registry()` | Creates a **new** registry with the built-in component definitions |
+| `register_component(...)` | Registers a constructor, optionally with a namespace |
+| `resolve(name)` | Returns the definition or raises `UnknownComponentError` |
+| `contains(name)` | Checks whether a name exists |
+| `snapshot()` | Returns an immutable snapshot of definitions |
+| `clone()` | Copies definitions into an independent registry |
+
+## Example: register a library component
+
+This example intentionally focuses on **resolution**, not on application startup. It uses the public PSX extension API directly.
+
+```python
+from psx import (
+    Text,
+    builtin_component_registry,
+    psx,
+    register_component,
+)
+
+
+def StatusLabel(*, label: str):
+    return Text(label)
+
+
+registry = builtin_component_registry()
+register_component(registry, "StatusLabel", StatusLabel, namespace="acme")
+
+assert registry.contains("acme.StatusLabel")
+node = psx('<acme.StatusLabel label="Ready" />', registry=registry)
+```
+
+The important part is `registry=registry`: the template resolver receives **this particular directory of names**. A template compiled without that registry will not automatically see `acme.StatusLabel`.
+
+<Note>
+This demonstrates the verified explicit-scope template API `psx(source, registry=...)`. Other PSX Markup modes, including component-aware compilation, have their own rules for accessing local Python names. Do not assume every compiler entry point accepts the same arguments.
+</Note>
+
+## Why start with built-ins?
+
+`ComponentRegistry()` starts empty. If your markup also uses `<Flex>` or `<Text>`, those names need to be present in the registry. `builtin_component_registry()` starts with the standard names and returns a fresh instance, so adding a library component does not mutate another application's registry.
+
+## Namespaces prevent accidental collisions
+
+A library author can use `namespace="acme"` to register `acme.StatusLabel` instead of a generic `StatusLabel`. The namespace is part of the registered name; it is **not** a Python import namespace. The `qualify()` helper validates that namespace segments are non-empty.
+
+Duplicate names are rejected with `DuplicateComponentError`. Registration does not silently replace a previous definition.
+
+## Registry isolation and template caching
+
+Each registry has its own definitions and `version`. Successful registrations increment the version. The template compiler uses registry identity and version as part of its cache key so one registry's custom names do not leak into another's cached resolution.
+
+Cloning produces an independent registry with the same definitions at that moment. It does not create a shared global registry.
+
+## Contracts versus rendering
+
+An optional `ComponentContract` describes component properties and related constraints. It does **not** implement a native control. If a constructor returns standard PSX nodes, existing renderer support may be enough. If it returns a new native node type requiring custom handling, investigate [Renderer adapters](/extensibility/renderer-adapters).
+
+## Common mistakes
+
+| Symptom | Likely cause |
+| --- | --- |
+| Unknown component name | Template was compiled without the registry, or name/namespace differs |
+| Duplicate component error | Same name registered twice in one registry |
+| Built-in tag no longer resolves | Used an empty `ComponentRegistry()` rather than starting from built-ins |
+| Registered name resolves but UI cannot mount | Renderer cannot handle the resulting node |
+
+For distributing registration across packages, continue to [Plugins and discovery](/extensibility/plugins-and-discovery).

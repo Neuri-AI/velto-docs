@@ -1,6 +1,43 @@
 ---
-title: "Settings and configuration"
-description: "Configure a Velto runtime without inventing markup window components."
+title: "Runtime settings and configuration"
+description: "How Qyro Engine consumes Velto project settings when running from source or a frozen build."
 ---
 
-Qyro settings provide binding, application metadata, resources, and supported window configuration. Use `load_build_settings()` for procedural access. `App.settings` is limited to supported Grid breakpoint configuration; it is not a general window-settings mapping.
+Qyro Engine and Velto CLI both read project JSON, but **Engine reads only the runtime subset**. During `VeltoContext` initialization, `JsonSettingsAdapter` resolves `base.json`, the host platform override, and runtime secrets. `release.json`, `build.json`, and `sign.json` are **not activated as runtime profiles**.
+
+For the complete JSON field-by-field CLI reference (including compiler optimization, UAC, DMG, NSIS and signing), see [Configuration files](/cli/configuration-files).
+
+## Settings discovery
+
+In source mode, Engine searches for a directory containing `base.json` in this order: `settings/`, `build/settings/`, `src/main/settings/`, `src/build/settings/`, and the root. In frozen mode it can read settings extracted from a protected `.velto/resources.pak` before falling back to existing filesystem settings directories. An explicit custom settings directory supplied to the underlying Engine takes priority if it exists.
+
+## Merge rules
+
+```text
+base.json
+  → first readable platform JSON
+  → local secrets.json
+  → encrypted secrets (when found)
+```
+
+Engine uses a **shallow** dictionary update, not the CLI's recursive merge. For macOS it checks `mac.json` then `darwin.json`; for Windows `windows.json` then `win32.json`; for Linux `linux.json`. Only the **first readable** matching override is loaded. A nested value such as `window` is replaced as a whole, so specify complete nested blocks rather than relying on inherited subkeys.
+
+## Fields with automatic runtime effects
+
+| Field | Engine behavior |
+| --- | --- |
+| `framework` | Selects PySide6, PyQt6, PyQt5, PySide2, Kivy, or Tkinter renderer; `binding` remains a fallback |
+| `window.width` / `window.height` | Both must be positive integers; otherwise fallback 800 × 600 |
+| `app_name` | Application metadata and native window title |
+| `icon` / `app_icon` | Attempts to locate and apply a window icon |
+| `version`, `author`, `identifier`, `description` | Metadata; version is also provided to the Sentry adapter |
+| `sentry_dsn` | With `enable_sentry=True`, selects Sentry instead of the console exception hook |
+| Arbitrary other keys | Remain available through `app_settings`; do not automatically control build/runtime features |
+
+`VeltoContext.app_settings` exposes the final settings mapping. The loaded settings are cached for the lifetime of the Engine adapter, and the first initialized `VeltoContext` shares its Engine container for subsequent instances in that process. Editing a JSON file on disk does not automatically refresh an already initialized application.
+
+## Source, frozen, and secrets
+
+In source mode, secrets are read as local `settings/secrets.json` data. In frozen mode, the Engine can retrieve the authenticated encrypted payload from `.velto/resources.pak`, derive/decrypt it using the companion native runtime module, and merge its fields into the settings dictionary. The protection changes **storage**, not the application's way of accessing values. See [Secrets and protection](/cli/secrets-and-protection) and [Protected resources](/cli/protected-resources).
+
+For CLI configuration precedence, see [Configuration files](/cli/configuration-files). For Sentry behavior, see [Telemetry](/cli/telemetry).

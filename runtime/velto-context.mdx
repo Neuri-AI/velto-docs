@@ -1,6 +1,71 @@
 ---
 title: "VeltoContext"
-description: "Run a PSX root through Qyro's configured application runtime."
+description: "Create and run a native Velto application with a PSX root."
 ---
 
-Subclass `VeltoContext` and implement `render()`. It initializes the global engine, obtains settings, selects a renderer from `framework` or `binding`, and mounts a PSX root. `render()` must return a VNode.
+`VeltoContext` is the main entry point for a Velto application. Create a subclass, implement `render()`, and call `run()`.
+
+## A complete application
+
+```python main.py
+import sys
+
+from velto import VeltoContext
+from velto.ui import component, psx, use_state
+
+
+@component
+def Counter():
+    count, set_count = use_state(0)
+
+    return psx("""
+        <Flex direction="column" gap="12px" padding="16px">
+            <Text font_size="24">Count: {count}</Text>
+            <Button label="Increment" on_click={() => set_count(count + 1)} />
+        </Flex>
+    """)
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" width="100%" height="100%">
+                <Counter />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+When you run the file, `VeltoContext` manages the application startup and native event loop. The `Counter` component owns local UI state; clicking the button triggers a re-render with the updated value.
+
+## Understand the three responsibilities
+
+1. **`VeltoContext`** provides the application entry point and runtime coordination.
+2. **`render()`** returns a PSX virtual node describing the interface.
+3. **`run()`** enters the native application's event loop and returns an exit status.
+
+`render()` is **not** a window configuration dictionary. Do not add an invented `<Window>` tag to your PSX Markup. Window and application settings belong to the runtime configuration layer.
+
+## Use runtime services from a view
+
+You can access environment information while composing the interface:
+
+```python
+from velto.runtime import is_frozen
+
+class MyApp(VeltoContext):
+    def render(self):
+        status = "Packaged" if is_frozen() else "Development"
+        return psx("""
+            <Flex padding="16px">
+                <Text>Mode: {status}</Text>
+            </Flex>
+        """)
+```
+
+For app-wide shared state, Velto also integrates Pydux. See [State management](/state/overview); you do not need to treat Qyro and Pydux as separate applications.
+
+<Note>The exact renderer-selection constructor parameters are version-dependent. This guide intentionally does not invent a `framework=` or `binding=` signature without the current runtime implementation.</Note>

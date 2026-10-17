@@ -1,6 +1,81 @@
 ---
 title: "Resources and environment"
-description: "Resolve application resources and detect frozen execution."
+description: "Resolve images and other files consistently in source and packaged Velto applications."
 ---
 
-Use `get_resource(*segments, required=True)` to resolve files, `is_frozen()` to detect a frozen executable, or `VeltoContext.get_resource()` from an application instance. Missing resources raise the public Qyro error.
+A Velto application may run directly from Python source or as a packaged executable. Hard-coded paths tied to your current working directory are fragile in both cases.
+
+Use `get_resource(*segments, required=True)` from `velto.runtime` to resolve an application resource, or `self.get_resource()` from `VeltoContext` when appropriate.
+
+## Resolve a file
+
+```python
+from velto.runtime import get_resource
+
+icon_path = get_resource("icons/32.png")
+print(icon_path)
+```
+
+The path segments identify a resource relative to the runtime's configured resource location. This example assumes that `icons/32.png` exists in your application's resources.
+
+## Show a resource in a Velto interface
+
+```python main.py
+import sys
+
+from velto import VeltoContext
+from velto.ui import psx
+from velto.runtime import get_resource, ResourceNotFoundError
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        try:
+            icon_path = get_resource("icons/32.png")
+            message = f"Found icon: {icon_path}"
+        except ResourceNotFoundError:
+            message = "The icon is missing from the resources directory."
+
+        return psx("""
+            <Flex direction="column" padding="16px" gap="12px">
+                <Text font_size="22">Resource lookup</Text>
+                <Text>{message}</Text>
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+This example displays the resolved path or a helpful error. It does not assume a particular image-component `source` attribute without verifying that component's contract.
+
+## Optional resources
+
+```python
+from velto.runtime import get_resource
+
+optional_file = get_resource("data/optional.json", required=False)
+```
+
+`required=False` relaxes missing-resource enforcement; it does **not** guarantee that the returned path exists. Check before opening it.
+
+## Source versus packaged execution
+
+```python
+from velto.runtime import is_frozen
+
+if is_frozen():
+    print("Running as a frozen executable")
+else:
+    print("Running from Python source")
+```
+
+Use the runtime's resource resolver rather than manually guessing a PyInstaller extraction directory or resolving every path relative to `__file__`.
+
+## Common mistakes
+
+- Using a path relative to the terminal's current directory rather than the application's resource root.
+- Forgetting to include an asset in the build configuration.
+- Assuming `required=False` means the file has been created.
+- Using `is_frozen()` to construct resource paths when `get_resource()` already handles the runtime environment.

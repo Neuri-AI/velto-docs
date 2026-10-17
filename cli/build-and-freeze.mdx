@@ -1,6 +1,70 @@
 ---
 title: "Build and freeze"
-description: "Build desktop artifacts with qyro build or qyro freeze."
+description: "Understand desktop freezing, configuration precedence, build modes, and generated artifacts."
 ---
 
-`qyro build` supports `--mode`, `--onefile`, profiles, debug and console options. `freeze` is an alias. Packaging depends on the local toolchain and selected platform; validate a generated application before publishing artifacts.
+`velto build` turns a configured Python project into **frozen desktop application artifacts** using PyInstaller. It is not a Python-to-native-code compiler and does not automatically create a DMG, NSIS installer, or Linux distribution package; those are responsibilities of `velto bundle`.
+
+## Source execution versus freezing
+
+| Concern | `velto start` | `velto build` |
+| --- | --- | --- |
+| Execution | Python source in the development environment | Frozen artifact with bundled runtime/dependencies |
+| Inputs | Generated project and installed packages | Entry point, installed packages, build settings, resources |
+| Output | Running application | Files for distribution or subsequent bundling |
+| Diagnostics | Development errors are usually directly visible | Requires testing the frozen artifact and its native dependencies |
+
+Freezing is **platform-specific**. Selecting a target or profile configures the build; it does not provide general Windows/macOS/Linux cross-compilation from one machine.
+
+## Choosing a bundle mode
+
+| Mode | Shape | Trade-off |
+| --- | --- | --- |
+| `onedir` | Executable plus dependency directory | Easier inspection and often faster startup; multiple files must travel together |
+| `onefile` | Single executable file | Simpler handoff, but startup may require temporary extraction |
+
+The project/release profile may supply the default. An explicit command override takes precedence:
+
+```bash
+velto build --mode onedir
+velto build --mode onefile
+# Equivalent onefile shorthand
+velto build --onefile
+```
+
+A single-file executable is **not** a substitute for an installer, a signature, or runtime testing.
+
+## Build inputs and precedence
+
+`settings/base.json` and the selected profile provide application metadata and platform options. Root `build.json` can override supported build fields. Explicit CLI flags control supported build-time overrides such as mode, debug, console, UAC and clean. See [Configuration files](/cli/configuration-files) for the merge rules; avoid duplicating a settings schema in every build guide.
+
+| Option | Behavior |
+| --- | --- |
+| `-m, --mode` | `onedir` or `onefile` |
+| `--onefile` | Select onefile |
+| `-p, --profile` | Settings profile; defaults to `release` |
+| `--target` | `desktop`, desktop OS aliases, or experimental `android`/`ios` |
+| `--debug` | Enable debugging behavior |
+| `--console` | Attach a console window |
+| `--uac` | Request administrator elevation for Windows builds |
+| `-c, --clean` | Clean build intermediates/cache |
+| `-i, --interactive` | Review build parameters interactively |
+| `--init-spec` | Mobile specification initialization; experimental |
+
+`--target windows`, `--target mac`, and `--target linux` select the corresponding platform profile. The command parser also exposes mobile targets, but the supported production workflow is desktop.
+
+## Resource packaging is a separate decision
+
+Builds can include encrypted application secrets, and optionally protect the broader `settings/` and `resources/` directories. These mechanisms affect the frozen layout and runtime lookup; they do not change the PSX application entry point. See [Protected resources](/cli/protected-resources) and [Secrets and protection](/cli/secrets-and-protection).
+
+## Diagnosing a build
+
+Begin with `onedir` and conservative optimization settings. Verify the frozen executable **before** bundling or signing it. When native features fail only after freezing, investigate hidden imports, Qt plugin exclusions, resource paths and runtime libraries rather than rewriting the UI. See [CLI troubleshooting](/cli/troubleshooting).
+
+## Configuration-driven optimization
+
+Build output is affected by `optimization` fields in the host platform JSON and release profile. The settings `exclude_modules`, `exclude_binaries`, and `exclude_plugins` are different: the first affects frozen Python modules, the second removes output binaries matching globs, and the third prunes Qt plugin families. `upx_excludes` only prevents matching binaries from UPX compression.
+
+`bytecode_opt` accepts `0`, `1`, or `2`; `strip_binaries`, `clean_build`, `upx_enabled`, `upx_level`, `upx_dir`, and `remove_translations` control other distinct optimization stages. Disable aggressive exclusions while diagnosing missing GUI plugins or native dependencies, and validate the resulting app, not merely PyInstaller's exit status.
+
+See the [Configuration files](/cli/configuration-files) table for every recognized field and platform-specific constraints.

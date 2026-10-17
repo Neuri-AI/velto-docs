@@ -1,6 +1,64 @@
 ---
 title: "Bundle and sign"
-description: "Package frozen output and use supported signing commands."
+description: "Separate packaging, installer customization, publisher signing, and macOS notarization."
 ---
 
-`qyro bundle` packages frozen artifacts. `qyro sign` validates and performs supported signing work. Platform-specific signing prerequisites remain external to Velto and must be configured locally.
+A frozen application is not necessarily a distribution package. **Bundling** chooses a format and assembles release files; **signing** establishes a cryptographic publisher identity for supported binaries or application bundles. The two operations have different prerequisites and configuration.
+
+## Distribution formats
+
+| Host/target | Supported package formats | External tool considerations |
+| --- | --- | --- |
+| macOS | `dmg`, `dir`, `zip` | Custom DMG layouts require `create-dmg`; basic DMG may use `hdiutil` |
+| Windows | `nsis`, `dir`, `zip` | NSIS installers require `makensis` |
+| Linux | `tar.gz`, `deb`, `rpm`, `arch`, `dir`, `zip` | Native package formats require their packaging toolchain |
+
+The default `--format auto` maps macOS to DMG, Windows to NSIS and Linux to tar.gz. Choose a format appropriate to your users and deployment channel.
+
+```bash
+velto bundle --check
+velto bundle --platform windows --format nsis
+velto bundle --platform mac --format dmg
+velto bundle --platform linux --format deb
+```
+
+`--check` validates dependencies and release configuration **without generating artifacts**. The command also supports `--release-dir`, `--no-resources`, `--zip` and `--format dir` (no installer). Bundling consumes a prior frozen build; it does not freeze the Python project for you.
+
+## Customizing installers
+
+`settings/release.json` controls release presentation. `bundle.dmg` includes window geometry, icon positions, backgrounds and DMG-specific extra files. `bundle.nsis` controls installer/uninstaller icons, welcome bitmap, installation location and execution level. These fields are **installer options**, not application settings. The [Configuration files](/cli/configuration-files) reference explains their schema.
+
+The `--no-resources` option controls copying the project resource directory during bundling; it is not a command to decrypt or disable resources already embedded by freezing.
+
+## Signing is intentionally separate
+
+`velto sign` reads **local-only `settings/sign.json`**, not runtime `settings/secrets.json`. The former contains credentials used by the publisher's build machine and must not be embedded into the client.
+
+```bash
+velto sign --check --platform windows
+velto sign --platform windows
+velto sign --check --platform mac
+velto sign --platform mac
+```
+
+Windows signing uses Authenticode tooling and a signing certificate. macOS signing uses `codesign` and an appropriate Developer ID identity. macOS notarization adds a separate Apple verification step:
+
+```bash
+velto sign --platform mac --notarize --staple --keychain-profile "VELTO-NOTARY"
+```
+
+The macOS command also exposes `--no-assess` to skip Gatekeeper assessment. `--staple` implies notarization in the current command implementation. Preflight checks should be run before consuming signing credentials or submitting a notarization request.
+
+## Recommended release boundaries
+
+A useful mental model is **build → verify frozen app → sign → bundle or distribute as appropriate → verify final artifact**. Exact signing order depends on the package format and platform; signing a binary is not the same as signing an installer container. Always test the *actual artifact users receive*.
+
+See [Secrets and protection](/cli/secrets-and-protection) for the boundary between runtime secrets and signing credentials.
+
+## How release JSON affects these commands
+
+`settings/release.json` contains two distinct installer option groups: `bundle.dmg` sets Finder window geometry, icon positions, background and embedded DMG extra files; `bundle.nsis` sets installer icons, welcome bitmap, installation destination (`programfiles64`, `programfiles32`, or `appdata`) and execution level (`highest`, `admin`, or `user`). The latter is **not the same setting as** `windows.json` → `uac`.
+
+`bundle.extra_files` accepts file paths or objects containing `source` and `destination` and affects the release root. `bundle.dmg.extra_files` populates DMG staging and requires `create-dmg` for customized DMGs. An installer missing one of its configured background or icon assets may fail preflight.
+
+For the exact JSON types, accepted values, and examples, see [Configuration files](/cli/configuration-files). Windows/macOS signing credentials belong in **local-only** `settings/sign.json`, never `secrets.json` or `release.json`.

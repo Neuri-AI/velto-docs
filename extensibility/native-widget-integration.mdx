@@ -1,6 +1,82 @@
 ---
 title: "Native widget integration"
-description: "Embed a native widget while respecting renderer ownership rules."
+description: "Embed existing toolkit controls and understand backend compatibility, ownership, and cleanup."
 ---
 
-`Native` and `native_widget` are advanced APIs. The renderer owns lifecycle and geometry decisions. Read the component reference and target renderer limits before passing a toolkit widget or factory.
+Sometimes the best widget already exists. Qt has rich plotting and web controls; Tkinter and Kivy have their own specialized ecosystems. **Native integration** lets a PSX tree contain one of those controls without pretending it is a portable built-in component.
+
+## When to use Native
+
+Use `Native` when you need a specific existing toolkit widget and your application already uses the matching renderer. Use an ordinary PSX component if it already provides the feature. Use a custom renderer adapter only when `Native` cannot express the required lifecycle behavior.
+
+## Two ways to supply a widget
+
+The `Native(widget=...)` API accepts either a widget **class/factory** or an **existing instance**. This distinction changes who owns the widget.
+
+| Form | Ownership | What happens at unmount |
+| --- | --- | --- |
+| Widget class or factory | **Owned** | PSX creates and releases the widget |
+| Existing widget instance | **Borrowed** | PSX must not destroy the caller-owned widget; backend-specific restoration rules apply |
+
+In the lower-level `NativeWidget` declaration, a factory requires `ownership="owned"`, while an existing instance requires `ownership="borrowed"`. Supplying both a factory and an instance is invalid.
+
+## Example: use an existing Qt plotting widget
+
+The example below focuses on the integration boundary. It is **not** another full application tutorial.
+
+```python
+import pyqtgraph as pg
+from velto.ui import psx
+
+
+class MetricsPlot(pg.PlotWidget):
+    def __init__(self):
+        super().__init__()
+        self.plot([2, 5, 3, 7, 4])
+
+
+def chart_view():
+    return psx("""
+        <Flex width="100%" height="100%">
+            <Native widget={MetricsPlot} />
+        </Flex>
+    """)
+```
+
+This pattern requires a compatible **Qt renderer** and a PyQtGraph installation using the matching Qt binding. `MetricsPlot` is a class, so PSX owns the widget instance it creates. Do not use this example with a Kivy or Tkinter renderer.
+
+<Note>
+PSX has both a Python `Native(...)` helper and a `Native` tag in its markup surface. The snippet uses the established Velto markup pattern. Exact support for passing a Python class through an expression depends on the active markup compiler mode; verify it in your project's Velto integration rather than assuming all compilation paths behave identically.
+</Note>
+
+## How backend selection works
+
+The Python `Native` helper can infer the renderer from known widget classes or instances: `pyside6`, `pyside2`, `pyqt6`, `pyqt5`, `tkinter`, and `kivy`. Custom classes that cannot be inferred can pass `renderer=` explicitly. This **selects a required backend**; it does not convert widgets between toolkits.
+
+The helper accepts `props`, `signals`, `key`, `ref`, and additional attributes. It rejects duplicate property names supplied both through `props` and keyword attributes. A `signals` mapping is translated to native signal bindings.
+
+## Borrowing has platform-specific limits
+
+Borrowing an existing widget is not uniformly supported:
+
+- **Qt:** borrowing is supported; PSX temporarily reparents the widget and restores the previous parent when released.
+- **Kivy:** borrowing is supported with restoration of the caller's parent and relevant layout hints.
+- **Tkinter:** borrowing an existing widget is **unsupported** because its `master` is fixed at creation; use a factory/class instead.
+
+These are lifecycle guarantees, not just style recommendations. Reusing an existing widget incorrectly can lead to broken parent relationships or premature destruction.
+
+## Geometry is a separate responsibility
+
+A native widget must participate in measurement and layout. The PSX `Native` helper constructs default geometry bridges for common Qt, Tkinter, and Kivy controls. Advanced declarations can provide an explicit `sfle_port` when standard widget measurement and geometry operations are insufficient. That is a lower-level integration point; do not introduce it unless a custom control genuinely requires it.
+
+## Updating properties and connecting signals
+
+The lower-level `NativeWidget` contract can define `update(widget, changed, removed)` and `bind_event(widget, event, slot)`. The update function receives **only changed values** and the names of removed values; the event binding must return a cleanup callback. This lets reconciliation update an existing control without treating every change as a fresh widget.
+
+For a concrete built-in example, PSX includes `psx/extensions/qt_webengine.py`, a `WebView` integration backed by `QWebEngineView`. It accepts either `url` or `html`, never both, and connects `loadFinished` and `urlChanged` signals through the native event lifecycle. It requires the optional PySide6 WebEngine binding.
+
+## Before shipping a native integration
+
+Check that the target binding matches the renderer, that your dependency is included in frozen builds, that the widget can be measured and resized, and that subscriptions and native resources are released on unmount. A successful Python import does not guarantee a working packaged desktop application.
+
+See [Renderer adapters](/extensibility/renderer-adapters) for the lower-level lifecycle contract and [Build and freeze](/cli/build-and-freeze) for packaging considerations.

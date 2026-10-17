@@ -1,6 +1,99 @@
 ---
 title: "Plugins and discovery"
-description: "Register explicit plugins and opt into entry-point discovery."
+description: "Understand explicit plugin registration, Python entry points, and their activation boundaries."
 ---
 
-Plugins implement `register(api)`. `load_plugins` loads explicit plugins immediately and discovers installed entry points only with `discover=True`. The public entry-point group is `psx.plugins`.
+A plugin packages **registration behavior**. Instead of asking every application to register several components and renderer adapters manually, a plugin exposes one method: `register(api)`.
+
+Think of a plugin as an installer of capabilities **inside the running application**, not as a new renderer or a separate UI framework.
+
+## Installing is not loading
+
+There are three distinct steps:
+
+1. A Python distribution is **installed** in the application's environment.
+2. The application **loads** a plugin object through `load_plugins()`.
+3. The plugin's `register(api)` method **registers** components or adapters in the supplied registries.
+
+Python package installation alone does not perform step 2 or 3. Automatic discovery is deliberately **opt-in**.
+
+## The smallest plugin
+
+The public PSX extension API uses the `Plugin` protocol: any object exposing a callable `register(api)` qualifies. A base-class inheritance hierarchy is not required.
+
+```python
+from psx import Text
+
+
+def StatusLabel(*, label: str):
+    return Text(label)
+
+
+class StatusPlugin:
+    def register(self, api):
+        api.component("StatusLabel", StatusLabel)
+```
+
+The plugin does not need to know which application will use it. It receives a scoped `PluginAPI` with access to the registry and named renderer instances supplied by the application.
+
+## Load an explicit plugin
+
+```python
+from psx import builtin_component_registry, load_plugins, psx
+
+registry = builtin_component_registry()
+loaded = load_plugins(registry, plugins=[StatusPlugin()], namespace="acme")
+
+assert len(loaded) == 1
+node = psx('<acme.StatusLabel label="Online" />', registry=registry)
+```
+
+`namespace="acme"` qualifies component names registered through `api.component()`. Loading returns a tuple of loaded plugin instances. The registry is **local** to this example; other registries remain unchanged.
+
+## What PluginAPI exposes
+
+| Method | Meaning |
+| --- | --- |
+| `api.component(name, constructor, contract=None)` | Register a named component in the supplied component registry |
+| `api.adapter(renderer, component, adapter, replace=False)` | Register a component adapter on a named renderer instance |
+| `api.capabilities(renderer)` | Inspect capabilities of a named renderer instance |
+
+`api.adapter("desktop", ...)` looks up the key `"desktop"` in the mapping passed as `renderers={"desktop": renderer_instance}`. It does **not** automatically discover the application's renderer. Unknown mapping keys raise `KeyError`.
+
+## How entry-point discovery works
+
+A Python **entry point** is package metadata that advertises where a plugin can be imported. PSX uses the group `psx.plugins`.
+
+For example, a third-party package could include:
+
+```toml
+[project.entry-points."psx.plugins"]
+status = "acme_status:StatusPlugin"
+```
+
+Here `status` is the entry-point label; `acme_status:StatusPlugin` identifies the Python module and exported plugin class. The package must actually provide that module and class.
+
+An application can then opt into discovery:
+
+```python
+from psx import builtin_component_registry, load_plugins
+
+registry = builtin_component_registry()
+loaded = load_plugins(registry, discover=True)
+```
+
+`discover=True` asks Python's `importlib.metadata` for installed entry points in the configured group and loads them. **It is not a background plugin scanner.** The default is `discover=False`, and importing PSX does not import every installed plugin.
+
+## Security and reliability implications
+
+Loading a plugin imports and executes third-party Python code. Treat plugins as code dependencies, not passive configuration files. Review and pin dependencies, and decide whether discovery is appropriate for your application's deployment model.
+
+Conflicts are explicit: duplicate component names and duplicate adapter registrations raise errors rather than silently overriding each other. `replace=True` exists for adapter registration but should be a deliberate, documented compatibility decision.
+
+## What if a plugin registers successfully but nothing changes?
+
+Registration affects the registry and renderer objects passed to `load_plugins()`. Check whether your markup uses that registry, whether you passed the expected renderer mapping, and whether the renderer supports the resulting node. See [Component libraries](/extensibility/component-libraries) and [Renderer adapters](/extensibility/renderer-adapters).
+
+## Source and compatibility
+
+The underlying source contains a minimal packaged example in `examples/badge_plugin/` with a `pyproject.toml` entry point. The entry-point group is currently named **`psx.plugins`**, even though the framework is called Velto. Do not rename it to `velto.plugins` unless the implementation changes.
