@@ -1,0 +1,22 @@
+---
+title: "Learning path"
+description: "Build one CounterCard extension from PSX to multiple native backends."
+---
+
+You only need to know Python, PSX Markup, `@component`, `use_state`, and basic events. We will explain every other term when it first appears.
+
+Our project is called **velto-controls**, and its example is `CounterCard`. First it is composed from standard PSX controls. Later, we explore a toolkit-native version and the adapter that would connect it to PSX. Finally, we package it as a plugin.
+
+## The learning staircase
+
+| Lesson | What changes | What stays the same |
+| --- | --- | --- |
+| [1. CounterCard with PSX](/extensibility/countercard-psx) | Build a reusable counter | `@component`, hooks and markup |
+| [2. How PSX reaches the screen](/extensibility/psx-rendering-pipeline) | Learn VNodes, renderer, adapter | Your markup |
+| [3. Native controls](/extensibility/native-controls-by-backend) | Write Qt, Tkinter and Kivy controls | Counter behavior |
+| [4. Adapter lifecycle](/extensibility/adapter-lifecycle-lab) | Connect creation, updates, events and disposal | One public component concept |
+| [5. Component registration](/extensibility/component-registration) | Make names resolvable | PSX markup |
+| [6. Plugin API](/extensibility/plugin-api-walkthrough) | Bundle registration operations | Component and adapters |
+| [7. Distribution](/extensibility/publishing-your-extension) | Build and publish package | Consumer-facing API |
+
+> **Verification boundary:** The attached documentation describes the PSX extension contracts, but does not include renderer implementation source. Where the exact integration cannot be proven, the lesson says so and provides a reproducible contract check rather than an invented working adapter.

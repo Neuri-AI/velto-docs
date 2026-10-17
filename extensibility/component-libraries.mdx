@@ -1,88 +1,66 @@
 ---
 title: "Component libraries"
-description: "Reuse components and understand explicit name resolution with ComponentRegistry."
+description: "Organize reusable PSX components into importable Python packages."
 ---
 
-A **component library** is a collection of reusable UI building blocks. You might publish a design system containing status indicators, form sections, or dashboard cards. Most such libraries only need ordinary PSX components; they do not need custom renderers or plugin discovery.
+A **component library** is a collection of UI pieces that other applications can import. Think of a toolbox: each component is a tool, and the Python package is the toolbox. **A library is not automatically a plugin.**
 
-## First, separate reuse from registration
+## From one file to a library
 
-**Reuse** means importing and calling a component from Python code. **Registration** means associating a name with a constructor so a PSX template resolver can find it. These are related but different operations.
+A simple project can start like this:
 
-A registry is like a directory: the entry `acme.Status` points to a constructor. The directory does not create the component immediately, nor does it install a native widget.
-
-## What a component registry contains
-
-The underlying PSX API provides `ComponentDefinition`, `ComponentRegistry`, `builtin_component_registry()`, and `register_component()`.
-
-| API | Responsibility |
-| --- | --- |
-| `ComponentDefinition` | Holds a name, callable constructor, and optional `ComponentContract` |
-| `ComponentRegistry` | Owns named definitions for one explicitly supplied registry |
-| `builtin_component_registry()` | Creates a **new** registry with the built-in component definitions |
-| `register_component(...)` | Registers a constructor, optionally with a namespace |
-| `resolve(name)` | Returns the definition or raises `UnknownComponentError` |
-| `contains(name)` | Checks whether a name exists |
-| `snapshot()` | Returns an immutable snapshot of definitions |
-| `clone()` | Copies definitions into an independent registry |
-
-## Example: register a library component
-
-This example intentionally focuses on **resolution**, not on application startup. It uses the public PSX extension API directly.
-
-```python
-from psx import (
-    Text,
-    builtin_component_registry,
-    psx,
-    register_component,
-)
-
-
-def StatusLabel(*, label: str):
-    return Text(label)
-
-
-registry = builtin_component_registry()
-register_component(registry, "StatusLabel", StatusLabel, namespace="acme")
-
-assert registry.contains("acme.StatusLabel")
-node = psx('<acme.StatusLabel label="Ready" />', registry=registry)
+```text
+monitoring-ui/
+├── pyproject.toml
+├── src/
+│   └── monitoring_ui/
+│       ├── __init__.py
+│       └── status_card.py
+└── demo.py
 ```
 
-The important part is `registry=registry`: the template resolver receives **this particular directory of names**. A template compiled without that registry will not automatically see `acme.StatusLabel`.
+`status_card.py` defines the component; `__init__.py` re-exports it so consumers can write `from monitoring_ui import StatusCard`. The consuming application decides how to make the component visible to its PSX compiler.
 
-<Note>
-This demonstrates the verified explicit-scope template API `psx(source, registry=...)`. Other PSX Markup modes, including component-aware compilation, have their own rules for accessing local Python names. Do not assume every compiler entry point accepts the same arguments.
-</Note>
+## A minimal reusable component
 
-## Why start with built-ins?
+```python
+# src/monitoring_ui/status_card.py
+from velto.ui import component, psx
 
-`ComponentRegistry()` starts empty. If your markup also uses `<Flex>` or `<Text>`, those names need to be present in the registry. `builtin_component_registry()` starts with the standard names and returns a fresh instance, so adding a library component does not mutate another application's registry.
 
-## Namespaces prevent accidental collisions
+@component
+def StatusCard(message: str):
+    return psx("""
+        <Flex direction="column" gap="4">
+            <Text>Status</Text>
+            <Text>{message}</Text>
+        </Flex>
+    """)
+```
 
-A library author can use `namespace="acme"` to register `acme.StatusLabel` instead of a generic `StatusLabel`. The namespace is part of the registered name; it is **not** a Python import namespace. The `qualify()` helper validates that namespace segments are non-empty.
+```python
+# src/monitoring_ui/__init__.py
+from .status_card import StatusCard
 
-Duplicate names are rejected with `DuplicateComponentError`. Registration does not silently replace a previous definition.
+__all__ = ["StatusCard"]
+```
 
-## Registry isolation and template caching
+This is a **library-definition example**, not a claim that any template can use `<StatusCard>` without explicit scope or registration.
 
-Each registry has its own definitions and `version`. Successful registrations increment the version. The template compiler uses registry identity and version as part of its cache key so one registry's custom names do not leak into another's cached resolution.
+## Reuse versus registration
 
-Cloning produces an independent registry with the same definitions at that moment. It does not create a shared global registry.
-
-## Contracts versus rendering
-
-An optional `ComponentContract` describes component properties and related constraints. It does **not** implement a native control. If a constructor returns standard PSX nodes, existing renderer support may be enough. If it returns a new native node type requiring custom handling, investigate [Renderer adapters](/extensibility/renderer-adapters).
-
-## Common mistakes
-
-| Symptom | Likely cause |
+| Reuse | Registration |
 | --- | --- |
-| Unknown component name | Template was compiled without the registry, or name/namespace differs |
-| Duplicate component error | Same name registered twice in one registry |
-| Built-in tag no longer resolves | Used an empty `ComponentRegistry()` rather than starting from built-ins |
-| Registered name resolves but UI cannot mount | Renderer cannot handle the resulting node |
+| Python imports a function/class | A registry maps a string name to a constructor |
+| Useful for ordinary libraries | Useful for explicitly compiled templates and plugin ecosystems |
+| Does not require plugin discovery | Requires passing the correct registry to the compilation path |
 
-For distributing registration across packages, continue to [Plugins and discovery](/extensibility/plugins-and-discovery).
+For the verified registry example, continue to [Component registration](/extensibility/component-registration).
+
+## Can it work on all backends?
+
+A component made only of standard PSX elements is **potentially portable**. A component that embeds `QWebEngineView` is **Qt-specific**. Packaging does not erase toolkit requirements.
+
+## Distribution
+
+You can install your library locally with `pip install -e .`, from a Git repository, or from PyPI. These installation methods distribute Python code; they do **not** automatically register PSX names. See [Publishing your extension](/extensibility/publishing-your-extension).

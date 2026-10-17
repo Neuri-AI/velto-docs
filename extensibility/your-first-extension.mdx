@@ -1,0 +1,67 @@
+---
+title: "Your first extension"
+description: "Build a reusable status card without plugins or renderer internals."
+---
+
+An extension can be as simple as **a Python function that returns PSX UI**. You do not need to start by writing a plugin.
+
+## What we are building
+
+A small status card that shows a message. We will reuse standard `Text` and `Flex` components. This is **composition**: assembling existing pieces into a new piece.
+
+## A complete starting application
+
+Install Velto with a compatible PySide6 backend as explained in [Installation](/getting-started/installation). Save the following as `main.py`:
+
+```python
+import sys
+from velto import VeltoContext
+from velto.ui import psx
+
+
+class Demo(VeltoContext):
+    def render(self):
+        message = "System online"
+        return psx("""
+            <Flex direction="column" gap="12" width="100%">
+                <Text>Monitoring dashboard</Text>
+                <Text>{message}</Text>
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(Demo().run())
+```
+
+Run `velto start`. **Expected result:** a native window with a heading and a status line. This example uses the established Velto application entry point; verify the active facade and renderer settings in your installed version.
+
+## Extract the reusable idea
+
+Now move the status display into a component. The `@component` API is used for PSX component functions; consult [First component](/getting-started/first-component) for the exact current scope and invocation rules.
+
+```python
+from velto.ui import component, psx
+
+
+@component
+def StatusCard(message: str):
+    return psx("""
+        <Flex direction="column" gap="4">
+            <Text>Status</Text>
+            <Text>{message}</Text>
+        </Flex>
+    """)
+```
+
+**Important:** This snippet defines the reusable component, but does not claim that `<StatusCard>` is automatically available in every string compiler or registry. [Component registration](/extensibility/component-registration) explains explicit name resolution; local component-aware markup has its own scope rules.
+
+## What did we extend?
+
+We created **reusable UI behavior**, not a new Qt control. The renderer still sees standard `Flex` and `Text` nodes. No adapter or plugin is needed.
+
+## Check your understanding
+
+- If you need another card, can you compose it from built-ins? Start with a component.
+- If `<StatusCard>` cannot be resolved, is the widget necessarily broken? No: name resolution happens before native rendering.
+- If you want to publish this component, must it become a plugin? No. See [Component libraries](/extensibility/component-libraries).

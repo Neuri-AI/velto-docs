@@ -1,0 +1,55 @@
+---
+title: "Your first plugin"
+description: "Register a reusable component through a simple PSX plugin."
+---
+
+A **plugin** groups registration instructions. Think of it as a helper that tells a particular application registry, “please add these names.” It does **not** automatically become a new UI framework.
+
+## 1. Write a component
+
+```python
+from psx import Text
+
+
+def StatusLabel(*, label: str):
+    return Text(label)
+```
+
+## 2. Write a plugin object
+
+```python
+class StatusPlugin:
+    def register(self, api):
+        api.component("StatusLabel", StatusLabel)
+```
+
+The plugin protocol needs a callable `register(api)`; inheritance from a special base class is not required.
+
+## 3. Load it into an explicit registry
+
+Put the preceding definitions and this code in `plugin_demo.py`:
+
+```python
+from psx import builtin_component_registry, load_plugins, psx
+
+registry = builtin_component_registry()
+loaded = load_plugins(registry, plugins=[StatusPlugin()], namespace="acme")
+
+assert len(loaded) == 1
+node = psx('<acme.StatusLabel label="Online" />', registry=registry)
+print(node)
+```
+
+Run this as an isolated non-GUI contract check (not as a Velto application). **Expected result:** one loaded plugin and a printed PSX node. This is deliberately a **non-GUI smoke test**; it verifies registration before involving a renderer.
+
+## 4. Can I use it in markup?
+
+Yes, when the relevant markup compilation uses the registry containing `acme.StatusLabel`. That is why we pass `registry=registry` above. The plugin itself is **not** a tag: the component it registers can become one.
+
+## 5. What is still missing?
+
+This example registers only a component that returns a standard `Text`. It needs no custom renderer adapter. To register an adapter, the plugin must also receive a mapping of named renderer instances; see [Plugins and discovery](/extensibility/plugins-and-discovery).
+
+## A quick test
+
+Remove `registry=registry` and compare the result. The purpose is to observe why a plugin's registration is **scoped**, not global. Read [Component registration](/extensibility/component-registration) if the error is surprising.

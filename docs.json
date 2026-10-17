@@ -98,10 +98,25 @@
         "group": "Extend Velto",
         "pages": [
           "extensibility/overview",
+          "extensibility/learning-path",
+          "extensibility/countercard-psx",
+          "extensibility/psx-rendering-pipeline",
+          "extensibility/native-controls-by-backend",
+          "extensibility/adapter-lifecycle-lab",
+          "extensibility/your-first-extension",
           "extensibility/component-libraries",
-          "extensibility/plugins-and-discovery",
+          "extensibility/component-registration",
+          "extensibility/native-widget-integration",
+          "extensibility/build-a-native-chart",
+          "extensibility/embed-a-web-browser",
           "extensibility/renderer-adapters",
-          "extensibility/native-widget-integration"
+          "extensibility/build-a-renderer-adapter",
+          "extensibility/your-first-plugin",
+          "extensibility/plugin-api-walkthrough",
+          "extensibility/plugins-and-discovery",
+          "extensibility/compatibility-and-troubleshooting",
+          "extensibility/publishing-your-extension",
+          "extensibility/faq"
         ]
       },
       {

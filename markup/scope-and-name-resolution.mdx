@@ -1,0 +1,231 @@
+---
+title: "Scope and name resolution"
+description: "Learn how PSX Markup finds Python values and custom components, and when to provide an explicit scope."
+---
+
+PSX Markup can use Python values inside expressions and Python components as custom tags. For example, `{username}` refers to a value, while `<ProfileCard />` refers to a component.
+
+Before PSX can build the interface, it needs to know what those names mean. This process is called **name resolution**.
+
+Most application code doesn't need to manage name resolution manually. When you write PSX Markup in a supported Python context, PSX can resolve names from the surrounding code. However, if you load markup from a file, construct templates dynamically, or want to control which names a template can access, you can provide them explicitly using `scope`.
+
+## What is a scope?
+
+A **scope** is a dictionary that associates names used in markup with Python values.
+
+Consider this example:
+
+```python
+from velto.ui import psx
+
+username = "Alex"
+
+view = psx("""
+    <Text>Hello, {username}!</Text>
+""", scope={"username": username})
+```
+
+The expression `{username}` appears inside the markup. The dictionary tells PSX which Python value that name represents.
+
+The name on the left (`"username"`) is what the markup looks for. The value on the right (`username`) is the Python object that the application supplies.
+
+A scope can also expose custom components.
+
+## Making custom components available
+
+Suppose your project contains a reusable component:
+
+```python
+# components/greeting_card.py
+from velto.ui import component, psx
+
+@component
+def GreetingCard():
+    return psx("""
+        <Text>Welcome to Velto!</Text>
+    """)
+```
+
+You can import it and explicitly make it available to a PSX template:
+
+```python
+from velto.ui import psx
+from components.greeting_card import GreetingCard
+
+view = psx("""
+    <Flex direction="column" gap="12">
+        <GreetingCard />
+    </Flex>
+""", scope={"GreetingCard": GreetingCard})
+```
+
+When PSX encounters `<GreetingCard />`, it looks for the corresponding component definition. The supplied scope connects the tag name to the imported component.
+
+This behavior has been tested through the public `velto.ui` imports: the resulting tree contains a component node whose type is `ComponentType(GreetingCard)` (the test used an equivalent `CounterCard` component).
+
+<Note>
+`@component` prepares a Python function as a PSX component and tracks its identity internally. It does **not** automatically publish that component under every possible markup name. An explicit scope is one way to tell a particular template which custom components it can use.
+</Note>
+
+## Building interfaces from generated templates
+
+The most useful reason to provide a scope is when **the application generates or selects the markup separately from the Python code that supplies its data and components**.
+
+Imagine you're building a dashboard generator. Instead of writing a new `render()` method for every dashboard, you want to reuse one template with different titles, descriptions, and components.
+
+Start with a reusable component in `components/counter_card.py`:
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def CounterCard():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" gap="12">
+            <Text>Counter: {count}</Text>
+            <Button on_click={increment}>Add one</Button>
+        </Flex>
+    """)
+```
+
+Now create a template generator in `templates.py`:
+
+```python
+from velto.ui import psx
+from components.counter_card import CounterCard
+
+DASHBOARD_TEMPLATE = """
+<Flex direction="column" gap="16">
+    <Text>{title}</Text>
+    <Text>{description}</Text>
+    <CounterCard />
+</Flex>
+"""
+
+
+def build_dashboard(title: str, description: str):
+    return psx(
+        DASHBOARD_TEMPLATE,
+        scope={
+            "title": title,
+            "description": description,
+            "CounterCard": CounterCard,
+        },
+    )
+```
+
+Notice that `DASHBOARD_TEMPLATE` doesn't know where `title`, `description`, or `CounterCard` come from. It only describes the interface. The `build_dashboard()` function supplies the missing names through `scope`.
+
+Your application can now generate different dashboards from the same markup:
+
+```python
+import sys
+
+from velto import VeltoContext
+from templates import build_dashboard
+
+
+class MyApp(VeltoContext):
+    def render(self):
+        return build_dashboard(
+            title="Development dashboard",
+            description="Tools for the development team",
+        )
+
+
+if __name__ == "__main__":
+    sys.exit(MyApp().run())
+```
+
+You can call `build_dashboard()` with other values to produce a different interface without changing the template. The `CounterCard` component remains reusable and manages its own state.
+
+This is the key advantage of `scope`: **the template can be reused or generated independently, while the application decides which Python values and components its names refer to**.
+
+### Selecting templates at runtime
+
+A template generator can also choose between different markup strings based on application data:
+
+```python
+TEMPLATES = {
+    "compact": """
+        <Flex direction="column" gap="8">
+            <Text>{title}</Text>
+            <CounterCard />
+        </Flex>
+    """,
+    "detailed": """
+        <Flex direction="column" gap="16">
+            <Text>{title}</Text>
+            <Text>{description}</Text>
+            <CounterCard />
+        </Flex>
+    """,
+}
+
+
+def build_dashboard_variant(
+    variant: str,
+    title: str,
+    description: str,
+):
+    source = TEMPLATES[variant]
+    return psx(
+        source,
+        scope={
+            "title": title,
+            "description": description,
+            "CounterCard": CounterCard,
+        },
+    )
+```
+
+Here, `variant` determines which markup is compiled, while `scope` supplies the values that the selected template needs. The template strings could also be produced by a visual editor or loaded from trusted files.
+
+<Note>
+These examples illustrate template generation and name resolution. The explicit component lookup through `scope` has been tested using the public `velto.ui` API; the complete dashboard application and its renderer interactions have not yet been independently certified.
+</Note>
+
+<Warning>
+`scope` is **not a security sandbox**. Passing a limited set of names does not, by itself, make arbitrary generated or externally supplied markup safe to execute. Use trusted templates unless you have separately verified the compiler's security boundaries for your use case.
+</Warning>
+
+## Is `scope` just another way to create aliases?
+
+It can be used that way, but aliasing is not its primary purpose.
+
+```python
+from components.greeting_card import GreetingCard
+
+view = psx("""
+    <WelcomeCard />
+""", scope={"WelcomeCard": GreetingCard})
+```
+
+Here, `<WelcomeCard />` resolves to the Python component `GreetingCard`.
+
+Python also supports import aliases:
+
+```python
+from components.greeting_card import GreetingCard as WelcomeCard
+```
+
+The difference is where the alias exists. `import as` creates a name in Python. `scope` explicitly creates a name available to a **specific PSX template**. Importing a symbol alone does not guarantee that every PSX compilation context will resolve it automatically.
+
+## How PSX finds a component name
+
+When PSX encounters a custom tag such as `<GreetingCard />`, it first checks the component definitions available through its active registry. If no definition is found there, it can resolve a `ComponentType` from the supplied scope or a supported lexical context. If the name still cannot be resolved, PSX reports an unknown-tag error.
+
+You do not need to create a `ComponentRegistry` just to use `scope`. A registry serves a different purpose: it explicitly associates markup tag names with component constructors and can be supplied to the compiler. This becomes particularly useful when designing component libraries and plugin systems.
+
+For more on reusable components, see [Your first kind of extension](/extensibility/your-first-extension). For explicit component registration, see [Component registration](/extensibility/component-registration).
+
+## Choosing the right approach
+
+Use ordinary Python imports to organize components across modules. Let PSX's supported lexical resolution handle names when writing markup directly in application code. Reach for `scope` when you need to supply names explicitly, especially when markup comes from an external template or a dynamically assembled source string.
+
+The important distinction is simple: **imports make objects available to Python; `scope` makes selected names available to a PSX template**.

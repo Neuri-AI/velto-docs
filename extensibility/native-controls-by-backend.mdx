@@ -1,0 +1,84 @@
+---
+title: "Lesson 3: Native controls in three toolkits"
+description: "See the concrete widget code before learning adapters."
+---
+
+## Why learn native controls first?
+
+An adapter is easier to understand after you have seen the control it manages. The following are **plain toolkit demonstrations**, not complete Velto apps or drop-in adapters. They show the operations an adapter eventually must perform.
+
+### PySide6: QLabel and QPushButton
+
+```python
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton
+
+class QtCounter(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.value = 0
+        self.label = QLabel("0")
+        button = QPushButton("Add one")
+        button.clicked.connect(self.increment)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.label)
+        layout.addWidget(button)
+
+    def increment(self):
+        self.value += 1
+        self.label.setText(str(self.value))
+```
+
+### Tkinter: Frame, Label and Button
+
+```python
+import tkinter as tk
+
+class TkCounter(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.value = 0
+        self.label = tk.Label(self, text="0")
+        self.label.pack()
+        tk.Button(self, text="Add one", command=self.increment).pack()
+
+    def increment(self):
+        self.value += 1
+        self.label.configure(text=str(self.value))
+```
+
+### Kivy: BoxLayout, Label and Button
+
+```python
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+
+class KivyCounter(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(orientation="vertical", **kwargs)
+        self.value = 0
+        self.label = Label(text="0")
+        button = Button(text="Add one")
+        button.bind(on_press=self.increment)
+        self.add_widget(self.label)
+        self.add_widget(button)
+
+    def increment(self, _button):
+        self.value += 1
+        self.label.text = str(self.value)
+```
+
+## Compare the native operations
+
+| Action | Qt | Tkinter | Kivy |
+| --- | --- | --- | --- |
+| Create label | `QLabel` | `tk.Label` | `Label` |
+| Update label | `setText` | `configure(text=...)` | `.text = ...` |
+| Connect click | `.clicked.connect(...)` | `command=...` | `.bind(on_press=...)` |
+| Ownership | Qt parent and QObject lifecycle | Tk master/widget tree | Kivy widget tree |
+
+## The missing bridge
+
+These classes are **not yet PSX adapters**. They show why a renderer-specific bridge exists: each toolkit has different native APIs. In the next lesson, we study the adapter lifecycle without pretending that these classes can be registered directly.
+
+**Velto application integration tests always use `velto start`.** These snippets are for understanding toolkit behavior, not alternate application launch instructions.

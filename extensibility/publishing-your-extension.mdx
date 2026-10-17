@@ -1,0 +1,147 @@
+---
+title: "Publishing your extension"
+description: "Package, test, and publish a Velto component library or plugin on PyPI."
+---
+
+You can distribute a Velto extension on **PyPI**, from a Git repository, or as a local package. **Publishing is not the same as plugin registration.** A reusable component library can be imported normally; a plugin may additionally advertise a PSX entry point.
+
+## 1. Choose what to publish
+
+- **Library:** users import components from Python. No plugin entry point required.
+- **Plugin:** users load registration behavior with `load_plugins`; optional discovery uses the `psx.plugins` entry-point group.
+- **Native integration:** declare the compatible toolkit dependencies and document renderer limitations.
+
+## 2. Create the package layout
+
+```text
+acme-status/
+├── pyproject.toml
+├── README.md
+└── src/
+    └── acme_status/
+        ├── __init__.py
+        └── plugin.py
+```
+
+## 3. Write a minimal plugin
+
+```python
+# src/acme_status/plugin.py
+from psx import Text
+
+
+def StatusLabel(*, label: str):
+    return Text(label)
+
+
+class StatusPlugin:
+    def register(self, api):
+        api.component("StatusLabel", StatusLabel)
+```
+
+```python
+# src/acme_status/__init__.py
+from .plugin import StatusPlugin
+
+__all__ = ["StatusPlugin"]
+```
+
+## 4. Explain `pyproject.toml`
+
+```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "acme-velto-status"
+version = "0.1.0"
+description = "Example PSX status plugin"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["velto"]
+
+[project.entry-points."psx.plugins"]
+status = "acme_status:StatusPlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/acme_status"]
+```
+
+This is a **packaging example** using standard Python tooling. The documented discovery group is `psx.plugins`. Confirm package metadata, supported Python versions, actual facade exports and dependency constraints against the version you intend to publish. Choose a unique PyPI distribution name.
+
+## 5. Build locally
+
+```bash
+python -m pip install --upgrade build twine
+python -m build
+python -m twine check dist/*
+python -m pip install -e .
+```
+
+**Expected result:** `dist/` contains a source distribution and wheel; `twine check` validates package metadata. These commands do not verify that a GUI renderer can mount your components.
+
+## 6. Smoke-test registration
+
+```python
+from psx import builtin_component_registry, load_plugins, psx
+from acme_status import StatusPlugin
+
+registry = builtin_component_registry()
+load_plugins(registry, plugins=[StatusPlugin()], namespace="acme")
+node = psx('<acme.StatusLabel label="Ready" />', registry=registry)
+print(node)
+```
+
+Save as `smoke_test.py` and run `python smoke_test.py`. This tests the documented PSX registry path without needing a GUI. **It does not prove that `velto.ui` exports these extension symbols.**
+
+## 7. Test discovery separately
+
+```python
+from psx import builtin_component_registry, load_plugins
+
+registry = builtin_component_registry()
+loaded = load_plugins(registry, discover=True)
+print(loaded)
+```
+
+Discovery is opt-in. Running this code imports third-party plugin code advertised in the current environment; test in a clean virtual environment.
+
+## 8. Publish to TestPyPI first
+
+Create a TestPyPI account and configure a supported authentication method (prefer trusted publishing in CI). Then:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+Install the test distribution in a fresh environment and repeat the smoke test. TestPyPI may not host all dependencies; you may need a separate index configuration for dependencies.
+
+## 9. Publish to PyPI
+
+After checking the version, metadata, dependencies and installation experience:
+
+```bash
+python -m twine upload dist/*
+```
+
+Alternatively configure PyPI **Trusted Publishing** in CI. Publishing requires your own PyPI project credentials or trusted-publisher setup; nothing in Velto publishes automatically.
+
+## 10. What consumers do
+
+```bash
+python -m pip install acme-velto-status
+```
+
+Installation provides the Python code. Consumers can explicitly load `StatusPlugin()` or choose `discover=True`. **It does not make `<acme.StatusLabel>` globally available**; the application must compile with the registry where the name was registered.
+
+## 11. Release checklist
+
+- Use a unique distribution name and semantic versioning policy.
+- Test in a clean environment with each supported Python version and renderer.
+- Declare Qt, Kivy or other backend requirements accurately.
+- Document how to enable the plugin and resolve its tags.
+- Verify wheel contents, license, README and import paths.
+- Explain that loading third-party plugins executes Python code.
+
+See [Plugins and discovery](/extensibility/plugins-and-discovery) and [Compatibility and troubleshooting](/extensibility/compatibility-and-troubleshooting).

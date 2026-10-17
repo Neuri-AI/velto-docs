@@ -1,0 +1,75 @@
+---
+title: "Build a native chart"
+description: "Follow a PySide6 and PyQtGraph example through Native and PSX Markup."
+---
+
+In this tutorial we want a line chart inside a Velto application. **PyQtGraph already knows how to draw charts**, so we will reuse it instead of building a chart engine or a custom adapter.
+
+## 1. Install compatible dependencies
+
+In a fresh virtual environment, install Velto with its PySide6 backend and PyQtGraph:
+
+```bash
+python -m pip install "velto[pyside6]" pyqtgraph
+```
+
+> **Compatibility checkpoint:** Ensure PyQtGraph selects the same Qt binding as your Velto renderer. Package availability and versions must be verified in the actual environment.
+
+## 2. Write `main.py`
+
+```python
+import sys
+import pyqtgraph as pg
+
+from velto import VeltoContext
+from velto.ui import psx
+
+
+class SineChart(pg.PlotWidget):
+    def __init__(self):
+        super().__init__()
+        self.setTitle("Measurements")
+        self.showGrid(x=True, y=True)
+        self.plot([2, 5, 3, 7, 4], pen=pg.mkPen(width=2))
+
+
+class Demo(VeltoContext):
+    def render(self):
+        return psx("""
+            <Flex direction="column" width="100%" height="100%" gap="12">
+                <Text>Live dashboard</Text>
+                <Native widget={SineChart} />
+            </Flex>
+        """)
+
+
+if __name__ == "__main__":
+    sys.exit(Demo().run())
+```
+
+## 3. Run and inspect
+
+```bash
+velto start
+```
+
+**Expected result, if the active facade and compiler support this class reference:** a native window with a heading and a plotted line. **Verification status:** this example is assembled from the documented `VeltoContext`, PSX and `Native` patterns; it has **not** been executed against the checked-out `develop` source in this documentation review. Verify class-expression resolution, widget sizing and the chosen renderer before publishing it as a certified example.
+
+## 4. Understand the journey
+
+1. PSX parses `<Native widget={SineChart} />`.
+2. The expression resolves the Python class `SineChart`.
+3. The renderer's native integration creates the Qt widget.
+4. The layout system gives it geometry.
+5. When the node is removed, PSX releases the **owned** instance.
+
+## 5. Common problems
+
+| Symptom | Check |
+| --- | --- |
+| `SineChart` not found | Python expression scope / compilation mode |
+| No compatible native adapter | Active renderer is PySide6 and supports `Native` |
+| Blank or clipped chart | Layout sizing and widget geometry |
+| Binding mismatch | PyQtGraph and Velto use the same Qt binding |
+
+A chart library packaged for reuse is covered by [Publishing your extension](/extensibility/publishing-your-extension).

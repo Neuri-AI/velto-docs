@@ -1,0 +1,52 @@
+---
+title: "Component registration"
+description: "Learn how PSX finds named components and why registries are scoped."
+---
+
+Imagine a dictionary that says `"acme.StatusLabel" → StatusLabel`. That is a **component registry**. It answers **which Python constructor belongs to a markup tag?** It does not draw a widget.
+
+## A verified registry example
+
+The underlying PSX extension API documents this pattern:
+
+```python
+from psx import Text, builtin_component_registry, psx, register_component
+
+
+def StatusLabel(*, label: str):
+    return Text(label)
+
+
+registry = builtin_component_registry()
+register_component(registry, "StatusLabel", StatusLabel, namespace="acme")
+
+assert registry.contains("acme.StatusLabel")
+node = psx('<acme.StatusLabel label="Ready" />', registry=registry)
+```
+
+**Expected result:** `node` is a PSX node. This is a **name-resolution example**, not a standalone GUI application.
+
+## Explain each line
+
+1. `StatusLabel` is a Python constructor returning a standard PSX `Text` node.
+2. `builtin_component_registry()` gives us a **fresh** registry with built-in definitions.
+3. `register_component(...)` adds one named definition, qualified as `acme.StatusLabel`.
+4. `contains(...)` confirms the name exists in **this** registry.
+5. `psx(..., registry=registry)` tells this compilation path which registry to use.
+
+## Why not just use a global registry?
+
+Two applications or tests may want different components with the same name. Scoped registries prevent accidental cross-application leakage. `ComponentRegistry()` starts empty; `builtin_component_registry()` starts with built-ins. A `clone()` makes an independent copy of the current definitions.
+
+## What errors mean
+
+| Error or symptom | Meaning | Next step |
+| --- | --- | --- |
+| `UnknownComponentError` | Name not in the resolver's registry | Check namespace and `registry=` |
+| `DuplicateComponentError` | The name is already registered | Pick a distinct name; do not silently overwrite |
+| Built-in tag missing | Started with an empty registry | Start with `builtin_component_registry()` |
+| Tag resolves but does not mount | Renderer cannot handle resulting node | Check [Renderer adapters](/extensibility/renderer-adapters) |
+
+The documented `ComponentDefinition` can include an optional `ComponentContract`. This describes properties and constraints; it is **not** a native renderer adapter. The registry also supports `resolve`, `snapshot`, `clone`, and a version used in template caching.
+
+> **Scope warning:** The explicit `registry=` example applies to the documented template entry point. Component-aware markup modes can have different local-name resolution rules. Do not assume every markup invocation accepts or needs `registry=`.

@@ -1,84 +1,60 @@
 ---
 title: "Renderer adapters"
-description: "Understand how a renderer creates, updates, binds, and destroys native controls."
+description: "Learn why renderers need adapters and how their lifecycle works."
 ---
 
-A **renderer** connects PSX's UI description to a concrete toolkit such as Qt, Tkinter, or Kivy. A **component adapter** is the part that handles one kind of component for **one renderer instance**.
+An adapter is a translator between **a PSX node** and **a particular native toolkit**. Most Velto applications never need a custom adapter: start with components or `Native` first.
 
-Most application developers never need to write an adapter. Start here only when ordinary PSX composition or [`Native`](/extensibility/native-widget-integration) cannot provide the behavior you need.
-
-## Why adapters exist
-
-PSX reconciles the old and new UI trees. It can decide that a `Button` changed its label without recreating the entire screen. But PSX's abstract tree cannot itself call Qt's `setText()` or connect a Kivy event. The renderer delegates those native operations to an adapter.
+## What happens when a button changes?
 
 ```mermaid
 sequenceDiagram
-    participant App as PSX application
-    participant Rec as Reconciler
-    participant Ren as Renderer
-    participant Ad as Component adapter
-    participant GUI as Native toolkit
-    App->>Rec: New VNode tree
-    Rec->>Ren: Mount or update node
-    Ren->>Ad: create / update / bind_event
-    Ad->>GUI: Create widget / change properties
-    Rec->>Ren: Unmount node
-    Ren->>Ad: unbind_event / destroy
-    Ad->>GUI: Release subscriptions / control
+    participant A as App / PSX
+    participant R as Reconciler
+    participant N as Renderer
+    participant D as Adapter
+    participant W as Native widget
+    A->>R: 1. New VNode tree
+    R->>N: 2. Mount or update
+    N->>D: 3. create / update
+    D->>W: 4. Create or change widget
+    R->>N: 5. Unmount old node
+    N->>D: 6. unbind_event / destroy
+    D->>W: 7. Release resources
 ```
 
-The reconciler still manages node identity, keys, hooks, refs, and cleanup ordering. An adapter does **not** replace reconciliation or the layout engine.
+PSX decides **what changed**. The adapter knows **which toolkit methods to call**. The adapter does not replace reconciliation, keys, hooks or Cinnamon layout.
 
-## The adapter lifecycle contract
+## The documented `ComponentAdapter` contract
 
-The verified `ComponentAdapter` protocol defines:
-
-| Method | When it matters |
+| Method | Purpose |
 | --- | --- |
-| `create(renderer, node, parent)` | Create a native handle for a mounted VNode |
-| `update(renderer, handle, changed, removed)` | Apply changed properties and clear removed ones |
-| `bind_event(renderer, handle, event, slot)` | Attach a callback and return a subscription handle |
-| `unbind_event(renderer, subscription)` | Remove the previous subscription safely |
-| `destroy(renderer, handle)` | Release the native handle on unmount |
+| `create(renderer, node, parent)` | Make the native control |
+| `update(renderer, handle, changed, removed)` | Apply changed properties; clear removed ones |
+| `bind_event(renderer, handle, event, slot)` | Attach event and return a subscription handle |
+| `unbind_event(renderer, subscription)` | Detach the previous subscription |
+| `destroy(renderer, handle)` | Release native resources |
 
-The optional `insert`, `move`, and `remove` child hooks may return `True` if the adapter handled an operation. Returning `False`, or omitting the hook, leaves it to the renderer. These optional hooks must not be assumed to exist on every adapter.
+Optional `insert`, `move` and `remove` child hooks can return `True` when handled; otherwise the renderer handles the operation.
 
-## Registration is instance-scoped
-
-A renderer exposes `register_adapter(component, adapter, replace=False)` and an `adapters` registry. For example, the underlying public helper can register an adapter on a renderer object:
+## Register on a specific renderer instance
 
 ```python
 from psx import register_adapter, renderer_capabilities
 
-# `renderer` is an already-created, compatible renderer instance.
-# `custom_adapter` implements the ComponentAdapter lifecycle protocol.
+# renderer: an existing compatible renderer instance
+# custom_adapter: a complete ComponentAdapter implementation
 register_adapter(renderer, "acme.Chart", custom_adapter)
 capabilities = renderer_capabilities(renderer)
 assert "acme.Chart" in capabilities.components
 ```
 
-This snippet shows the registration contract, **not** a complete adapter implementation. Writing a working adapter requires backend-specific widget construction, updates, event subscriptions, and cleanup. The capability check confirms a registered key, not that a particular native feature will work on every operating system.
+This is an **API contract fragment**, not standalone code: `renderer` and `custom_adapter` are intentionally supplied by the integration. Registration on one renderer does not register the adapter on every renderer.
 
-<Note>
-The code above is intentionally a contract fragment: `renderer` and `custom_adapter` are supplied by your integration. It is not a copy-paste standalone application. For most third-party Qt widgets, prefer `Native` before implementing a complete adapter.
-</Note>
+## A capability is not a portability guarantee
 
-## How capability inspection works
+`renderer_capabilities(renderer)` reports `name`, `components` and `supports_native` for that **concrete instance**. `supports_native` does not mean every native widget class is supported.
 
-`renderer_capabilities(renderer)` returns a `RendererCapabilities` value with `name`, `components`, and `supports_native`. It reads the adapter registry on that **specific object**. `supports_native` means the `Native` adapter key is present; it does not guarantee support for every toolkit class or ownership mode.
+## When an adapter is too much
 
-## Replacing an adapter is a high-impact change
-
-By default, registering a second adapter for the same component raises an error. Passing `replace=True` overrides that mapping for the renderer instance. This can change how existing UI elements are created, updated, or destroyed. A replacement must preserve the expected lifecycle and should be tested against mounting, updates, event rebinding, and unmounting.
-
-## Common failure patterns
-
-| Symptom | What to inspect |
-| --- | --- |
-| `RendererCapabilityError` | Missing adapter for the component key |
-| Duplicate adapter error | Registration already exists; investigate before using `replace=True` |
-| Event fires twice after updates | Old subscription not removed in `unbind_event` |
-| Widgets leak or crash on close | `destroy` or ownership handling is incorrect |
-| Layout is wrong | Renderer/layout responsibilities, not just adapter properties |
-
-The key distinction is **name resolution versus native implementation**: [Component libraries](/extensibility/component-libraries) covers the first; this page covers the second.
+If you can create the same UI with `<Text>` and `<Flex>`, compose components. If Qt already supplies the widget, try `<Native>` first. Write an adapter only when you need custom native creation, updates, event handling or cleanup.

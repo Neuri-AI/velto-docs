@@ -1,0 +1,41 @@
+---
+title: "Embed a web browser"
+description: "Understand QWebEngineView integration and its toolkit-specific requirements."
+---
+
+A web view displays web content **inside a native desktop window**. Qt supplies `QWebEngineView`; PSX can integrate Qt-native controls when the selected renderer supports them.
+
+## What you need
+
+- A compatible Qt renderer (this tutorial uses PySide6).
+- The matching WebEngine package and native runtime files.
+- A widget or PSX extension that correctly handles URL changes, events and cleanup.
+
+The reviewed PSX documentation identifies `psx/extensions/qt_webengine.py` as a built-in example containing a `WebView` integration backed by `QWebEngineView`. It accepts `url` **or** `html`, not both, and handles `loadFinished` and `urlChanged` through the native event lifecycle.
+
+## The simplest conceptual markup
+
+```jsx
+<Flex width="100%" height="100%">
+    <WebView url="https://example.com" />
+</Flex>
+```
+
+**This is conceptual markup, not a certified runnable example.** `WebView` must be imported or registered in the compiler's active scope, and its actual constructor/export contract must be checked in `develop`. Do not assume `WebView` is exported from `velto.ui` or auto-registered as a tag.
+
+## Why use a wrapper?
+
+A wrapper can translate simple PSX properties such as `url` into toolkit operations, connect signals and clean up subscriptions. It can also prevent invalid combinations such as specifying both `url` and `html`.
+
+## Why not use this with Kivy?
+
+`QWebEngineView` belongs to Qt. PSX Markup is a shared **description language**, not a toolkit conversion engine. A Kivy renderer needs a Kivy-compatible implementation or a separate adapter.
+
+## What to verify before turning this into a copy-paste tutorial
+
+1. Actual import path of `WebView` in `psx/extensions/qt_webengine.py`.
+2. Whether the active PSX markup mode resolves the wrapper by local scope or explicit registry.
+3. WebEngine installation and packaging dependencies.
+4. Event callbacks and native cleanup when navigating or unmounting.
+
+For a verified class-based pattern already shown in the source documents, start with [Native widget integration](/extensibility/native-widget-integration).

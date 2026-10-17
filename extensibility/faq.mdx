@@ -1,0 +1,54 @@
+---
+title: "Frequently asked questions"
+description: "Clear answers about PSX Markup, plugins, component registration, native widgets, renderers, and publishing extensions."
+---
+
+This page answers common questions you may encounter while extending Velto. You do not need to read it from top to bottom: use it whenever a term or behavior is unclear.
+
+## Can I use extensions in PSX Markup?
+
+**Visual extensions can be exposed through PSX Markup**, provided PSX can resolve the component and the selected renderer supports the resulting node. Not every extension is visual: a logging or storage service, for example, is usually called from Python rather than represented by a tag.
+
+## Does every custom component need a plugin?
+
+No. You can build reusable components with ordinary Python and PSX. A plugin is useful when you want a package to register capabilities through an explicit loading mechanism; it is not a prerequisite for component reuse.
+
+## If I install a plugin with pip, does Velto load it automatically?
+
+No. Installing a Python distribution and activating its PSX plugin registration are different operations. In the extension API described by the current documentation, `load_plugins(..., discover=True)` explicitly enables discovery. Check the plugin guide for the exact supported setup.
+
+## Is a component registry the same as a plugin?
+
+No. A **component registry** associates component names with their definitions within a particular scope. A **plugin** is an object that can register components and other capabilities through its `register(api)` method. A plugin may use a registry, but they are not interchangeable concepts.
+
+## Why can PSX recognize a component but fail to display it?
+
+Recognizing a name is only one part of the process. The resulting node must also be supported by the active renderer. A component can be resolvable while its native implementation or required dependency is unavailable.
+
+## Can I use the same extension with PySide6, Tkinter, and Kivy?
+
+It depends on what the extension does. Components built from supported standard PSX elements may work across renderers. A widget tied to Qt, such as `QWebEngineView`, requires a compatible Qt renderer and cannot be mounted directly as a Kivy widget merely because it appears in PSX Markup.
+
+## When should I use a native widget instead of writing an adapter?
+
+If your toolkit already provides the control you need, start by investigating [Native widget integration](/extensibility/native-widget-integration). An adapter becomes relevant when you must teach a renderer how to create, update, handle events for, and clean up a particular kind of node.
+
+## Can a plugin provide custom PSX components and native adapters together?
+
+That is one purpose of the plugin registration mechanism described in the extension documentation. However, registering a component name does not automatically provide native support: the appropriate renderer integration must also exist.
+
+## Do I have to publish an extension to PyPI?
+
+No. You can keep an extension in your project, share it as source code, install it from a Git repository, or distribute it through PyPI. PyPI is a package distribution service; it does not replace PSX registration or renderer compatibility.
+
+## If I publish a package on PyPI, will its components become PSX tags automatically?
+
+No. Packaging makes Python code installable. Your application must still make the component definitions available to PSX through a supported resolution path. A plugin can help register them, but publication alone does not activate them.
+
+## Who removes a native widget when it disappears from the interface?
+
+That depends on the integration's **ownership contract**. The framework must distinguish a widget it creates from a widget supplied by the application. The correct cleanup behavior can differ, so consult [Native widget integration](/extensibility/native-widget-integration) before integrating resource-heavy controls.
+
+## Where should I start?
+
+If you are new to extensibility, follow [Your first extension](/extensibility/your-first-extension). If you already have a working component and want to distribute it, continue with [Component libraries](/extensibility/component-libraries) and [Publishing your extension](/extensibility/publishing-your-extension). If you need a toolkit-specific control, begin with [Native widget integration](/extensibility/native-widget-integration).

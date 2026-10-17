@@ -1,0 +1,170 @@
+---
+title: "Lesson 1: Your first kind of extension"
+description: "Recognize the components you already use as Velto's simplest extension mechanism, then move one into a reusable Python module."
+---
+
+Throughout this documentation, you've already created components with `@component`, built interfaces using PSX Markup, and managed state with hooks.
+
+What you might not have realized is that **you've already been extending Velto**.
+
+Every time you create a component, you're adding something new to your application without changing how Velto itself works. You can combine existing elements such as `Flex`, `Text`, and `Button` into larger, reusable pieces of your interface.
+
+This approach is called **component composition**, and it's the simplest way to extend Velto.
+
+You don't need to understand plugins, registries, or renderer adapters to use it. In fact, you've been doing it since your first application.
+
+Let's explore how a familiar component can become the foundation of a reusable component library.
+
+## Moving components into their own files
+
+As an application grows, keeping every component inside `main.py` quickly becomes difficult to maintain.
+
+Imagine you've already created this counter:
+
+```python
+from velto.ui import component, psx, use_state
+
+@component
+def CounterCard():
+    count, set_count = use_state(0)
+
+    def increment():
+        set_count(count + 1)
+
+    return psx("""
+        <Flex direction="column" gap="12">
+            <Text>Counter: {count}</Text>
+            <Button on_click={increment}>Add one</Button>
+        </Flex>
+    """)
+```
+
+There's nothing unfamiliar about this example. `CounterCard` uses local state, responds to a button click, and returns an interface written with PSX Markup.
+
+The important question is no longer how the counter works, but **how to reuse it without copying its implementation**.
+
+Create a new Velto project using the PySide6 backend:
+
+```bash
+velto init --name velto-controls-demo --framework pyside6
+cd velto-controls-demo
+```
+
+Inside the generated `components` directory, create a Python file named `counter_card.py`.
+
+Your project will contain a structure similar to this:
+
+```text
+velto-controls-demo/
+├── components/
+│   ├── __init__.py
+│   └── counter_card.py
+├── main.py
+└── ...
+```
+
+Move the `CounterCard` definition into `components/counter_card.py`.
+
+The component itself hasn't changed. It still behaves exactly as before, but its implementation now lives in a separate module that other parts of your application can import.
+
+This small organizational change is the starting point for building reusable component libraries.
+
+## Reusing your component
+
+Now open your application's `main.py` and import the component:
+
+```python
+from components.counter_card import CounterCard
+```
+
+You can then include it in your application's interface:
+
+```jsx
+<Flex direction="column" gap="16">
+    <Text>My dashboard</Text>
+    <CounterCard />
+</Flex>
+```
+
+When PSX encounters `<CounterCard />`, it needs to know which Python component that name represents.
+
+Run your application using Velto CLI:
+
+```bash
+velto start
+```
+
+Your dashboard can now display `CounterCard` while keeping its implementation separate from the application's entry point.
+
+More importantly, you can reuse the same component in other parts of your application without duplicating its code.
+
+## What happens when you use `@component`?
+
+You've used `@component` throughout the documentation, but understanding what it does internally will help you recognize the difference between ordinary components and more advanced extensions.
+
+Consider a familiar declaration:
+
+```python
+@component
+def CounterCard():
+    ...
+```
+
+When Python processes this decorator, PSX prepares the function as a component and creates an internal component definition.
+
+That definition allows PSX to manage the component's lifecycle, including its hooks and state. PSX also keeps track of the definition internally so its identity can be preserved during compatible code reloads.
+
+**This means `@component` already performs internal registration automatically.**
+
+You don't need to register every ordinary component manually.
+
+However, creating a component and making its name available inside a particular PSX Markup expression are two different things.
+
+Think of `@component` as creating a reusable component that Velto knows how to manage. Importing that component makes it available to another Python module. When you write `<CounterCard />`, PSX must then connect that name to the imported component.
+
+For application components, this is usually handled through PSX's supported scope-resolution mechanisms.
+
+Later, when you begin creating component libraries and plugins, you'll discover `ComponentRegistry`. It provides an explicit way to associate component names with their implementations, making those names available through a registry rather than relying only on the surrounding Python code.
+
+For now, the important thing to remember is that **`@component` creates and tracks your component, while name resolution determines how PSX finds it in markup**.
+
+## Why no native code was needed
+
+Although `CounterCard` is a component you've created yourself, it doesn't introduce any new native controls.
+
+Its interface is composed entirely of elements Velto already supports:
+
+```jsx
+<Flex direction="column" gap="12">
+    <Text>Counter: {count}</Text>
+    <Button on_click={increment}>Add one</Button>
+</Flex>
+```
+
+When the component is rendered, PSX produces the corresponding interface nodes. The selected renderer then handles those nodes using the native toolkit.
+
+For example, the PySide6 renderer is responsible for displaying the appropriate Qt controls. A Tkinter or Kivy renderer uses its own implementations for the elements it supports.
+
+Your component doesn't need to know how those native controls are created. It only describes how existing PSX elements should be combined.
+
+This separation is one of the reasons component composition is so useful: you can build increasingly sophisticated interfaces without implementing every control from scratch.
+
+But composition has its limits.
+
+Imagine you want to integrate an interactive chart from `pyqtgraph`, embed a web browser using `QWebEngineView`, or introduce a native control that Velto doesn't currently support.
+
+Those situations require a different kind of extension.
+
+## Beyond component composition
+
+You've already learned the simplest way to extend Velto: creating reusable components from existing PSX elements.
+
+As your projects become more sophisticated, you may want to distribute those components as a library, register them under custom names, integrate existing native widgets, or teach a renderer how to handle entirely new controls.
+
+Velto provides additional extension mechanisms for these situations, including component registries, native widget integration, renderer adapters, and plugins.
+
+You don't need to learn all of them at once. Each builds on the same idea you've already practiced: **creating reusable functionality that works within Velto's component system**.
+
+In the next guide, [How PSX reaches the screen](/extensibility/psx-rendering-pipeline), you'll discover what happens between writing PSX Markup and seeing native controls appear on your screen.
+
+Understanding that process will make the more advanced extension mechanisms much easier to follow.
