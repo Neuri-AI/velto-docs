@@ -84,7 +84,7 @@ Velto organizes its Python APIs into namespaces:
 | `velto.state` | Shared application state |
 | `velto.runtime` | Runtime services and resources |
 
-You only need the first two for Hello World. We'll introduce the others when you have a reason to use them.
+You only need the first two for Hello World. **Pydux is optional.** To use `velto.state`, install `pip install 'velto[state]'` (or `pip install 'velto[pyside6,state]'` if setting up PySide6 too). A Velto UI using `use_state` works without Pydux. We'll introduce the other namespaces when you have a reason to use them.
 
 ## 4. Install the CLI for the tutorial
 
