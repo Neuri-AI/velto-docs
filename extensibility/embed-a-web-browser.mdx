@@ -1,41 +1,80 @@
 ---
 title: "Embed a web browser"
-description: "Understand QWebEngineView integration and its toolkit-specific requirements."
+description: "Use a PySide6 QWebEngineView with Native reactive props."
 ---
 
-A web view displays web content **inside a native desktop window**. Qt supplies `QWebEngineView`; PSX can integrate Qt-native controls when the selected renderer supports them.
+`QWebEngineView` is a Qt widget. Velto mounts it through `Native`;
+it does not convert it to Tkinter or Kivy.
 
-## What you need
+## 1. Install matching dependencies
 
-- A compatible Qt renderer (this tutorial uses PySide6).
-- The matching WebEngine package and native runtime files.
-- A widget or PSX extension that correctly handles URL changes, events and cleanup.
-
-The reviewed PSX documentation identifies `psx/extensions/qt_webengine.py` as a built-in example containing a `WebView` integration backed by `QWebEngineView`. It accepts `url` **or** `html`, not both, and handles `loadFinished` and `urlChanged` through the native event lifecycle.
-
-## The simplest conceptual markup
-
-```jsx
-<Flex width="100%" height="100%">
-    <WebView url="https://example.com" />
-</Flex>
+```bash
+python -m pip install "velto[pyside6]" PySide6-Addons
 ```
 
-**This is conceptual markup, not a certified runnable example.** `WebView` must be imported or registered in the compiler's active scope, and its actual constructor/export contract must be checked in `develop`. Do not assume `WebView` is exported from `velto.ui` or auto-registered as a tag.
+Use the compatible WebEngine distribution for your binding and ensure
+the platform-specific WebEngine runtime is packaged with your app.
 
-## Why use a wrapper?
+## 2. Embed the widget without reactive data
 
-A wrapper can translate simple PSX properties such as `url` into toolkit operations, connect signals and clean up subscriptions. It can also prevent invalid combinations such as specifying both `url` and `html`.
+```python
+from PySide6.QtWebEngineWidgets import QWebEngineView
+```
 
-## Why not use this with Kivy?
+```jsx
+<Native widget={QWebEngineView}
+        width="100%" height="100vh" key="browser" />
+```
 
-`QWebEngineView` belongs to Qt. PSX Markup is a shared **description language**, not a toolkit conversion engine. A Kivy renderer needs a Kivy-compatible implementation or a separate adapter.
+No adapter is required merely to embed a native widget.
 
-## What to verify before turning this into a copy-paste tutorial
+## 3. Navigate reactively using a custom class
 
-1. Actual import path of `WebView` in `psx/extensions/qt_webengine.py`.
-2. Whether the active PSX markup mode resolves the wrapper by local scope or explicit registry.
-3. WebEngine installation and packaging dependencies.
-4. Event callbacks and native cleanup when navigating or unmounting.
+```python
+from PySide6.QtCore import QUrl
+from PySide6.QtWebEngineWidgets import QWebEngineView
 
-For a verified class-based pattern already shown in the source documents, start with [Native widget integration](/extensibility/native-widget-integration).
+class Browser(QWebEngineView):
+    def update_props(self, props, changed):
+        if "url" in changed:
+            value = props["url"].strip()
+            if not value:
+                return
+            if not value.startswith(("http://", "https://")):
+                value = "https://" + value
+            self.setUrl(QUrl(value))
+```
+
+```jsx
+<Native widget={Browser}
+        props={{"url": current_url}}
+        width="100%" height="100vh" key="browser" />
+```
+
+`current_url` can be maintained through `use_state`. The widget stays mounted,
+and only changing the URL causes navigation.
+
+## 4. Use the original Qt class with native_adapter
+
+```python
+from velto.ui import native_adapter
+
+@native_adapter(QWebEngineView)
+def update_browser(widget, props, changed):
+    if "url" in changed:
+        widget.setUrl(QUrl(props["url"]))
+```
+
+The same `<Native widget={QWebEngineView} props={{"url": current_url}} />`
+is now controlled without subclassing.
+
+The `props` mapping does not infer `set_url()`, `setUrl()` or any arbitrary
+setter; the class/adapter is responsible for native behavior.
+
+## 5. Events, lifecycle and portability
+
+Use `signals` to subscribe to Qt signals such as `loadFinished`.
+Match the runtime's Qt binding and verify WebEngine packaging when frozen.
+Qt widgets are not accepted by the Kivy or Tkinter renderers.
+
+See [Native component reference](/reference/ui/components/native).
