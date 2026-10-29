@@ -1,52 +1,103 @@
 ---
 title: "Native widget integration"
-description: "Embed existing toolkit widgets and understand ownership and compatibility."
+description: "Use external toolkit widgets with a stable reactive props contract."
 ---
 
-Sometimes you do not need to build a widget: **Qt, Tkinter, or Kivy already has it**. The `Native` integration lets a PSX tree include that control when the renderer is compatible.
+`Native` integrates Qt, Tkinter, Kivy or third-party widgets **without
+converting their framework**. Choose a matching runtime backend.
 
-## A simple mental model
+## 1. Mount an existing widget
 
-PSX describes **where the widget belongs** in the interface. The toolkit supplies **what the widget actually is**. Putting a Qt widget inside PSX does not convert it into a Kivy widget.
+```python
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from velto.ui import psx
+```
 
-## An existing Qt plot
+```jsx
+<Native widget={QWebEngineView}
+        width="100%" height="100vh" key="browser" />
+```
+
+A widget with no reactive `props` needs no adapter. A class/factory is
+created and owned by PSX; passing an existing instance borrows it.
+
+## 2. Write a custom class using update_props
+
+```python
+from PySide6.QtCore import QUrl
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+class Browser(QWebEngineView):
+    def update_props(self, props, changed):
+        if "url" in changed:
+            url = props["url"]
+            if url and not url.startswith(("http://", "https://")):
+                url = "https://" + url
+            if url:
+                self.setUrl(QUrl(url))
+```
+
+```jsx
+<Native widget={Browser}
+        props={{"url": current_url}}
+        width="100%" height="100vh" key="browser" />
+```
+
+`update_props(self, props, changed)` receives all current reactive props and
+a `frozenset[str]` naming only changed/new keys. Velto doesn't guess setters
+based on property names.
+
+## 3. Adapt a third-party class
 
 ```python
 import pyqtgraph as pg
-from velto.ui import psx
+from velto.ui import native_adapter
 
-
-class MetricsPlot(pg.PlotWidget):
-    def __init__(self):
-        super().__init__()
-        self.plot([2, 5, 3, 7, 4])
-
-
-def chart_view():
-    return psx("""
-        <Flex width="100%" height="100%">
-            <Native widget={MetricsPlot} />
-        </Flex>
-    """)
+@native_adapter(pg.PlotWidget)
+def update_chart(widget, props, changed):
+    if not hasattr(widget, "_curve"):
+        widget._curve = widget.plot()
+    if "data" in changed:
+        widget._curve.setData(props["data"])
 ```
 
-This is an **integration fragment**, not a complete runnable application. It needs PyQtGraph, a matching Qt binding, and a compatible renderer. Confirm that the active markup compiler can resolve `MetricsPlot` from the Python scope.
+```jsx
+<Native widget={pg.PlotWidget}
+        kwargs={{"background": "#151515"}}
+        props={{"data": cpu_values}}
+        width="100%" height="400px" key="chart" />
+```
 
-## Who owns the widget?
+An external adapter is registered once, and applies to subclasses unless a
+more specific adapter exists. If the widget itself implements `update_props`,
+that method takes precedence. Never mutate `props` within the handler.
 
-| You provide | Ownership | On unmount |
+## 4. Constructor configuration versus reactive values
+
+`args` and `kwargs` go to the constructor; `props` is passed to the
+update handler after mounting and on changes. Changed constructor arguments
+remount only the native widget; changed reactive props preserve it.
+
+PSX uses shallow/identity-safe comparisons to avoid expensive comparisons of
+NumPy arrays during resize. Supply new arrays/objects when their contents
+change. Removing a reactive property key currently raises an error; use a
+reset value (e.g. `None`) that your handler supports.
+
+Layout-related `width`, `height` and CSS stay under Cinnamon's control.
+All widget operations run on the renderer's UI thread; no worker threads
+are used for applying props.
+
+## 5. Ownership and compatibility
+
+| Passed widget | Ownership | Unmount |
 | --- | --- | --- |
-| A widget class or factory | **Owned** by PSX | PSX creates and releases it |
-| An existing widget instance | **Borrowed** | PSX must not destroy the caller-owned widget |
+| Class or factory | Owned | PSX releases it |
+| Existing instance | Borrowed | Caller retains lifetime |
 
-The documented lower-level `NativeWidget` declaration requires a factory with `ownership="owned"` or an instance with `ownership="borrowed"`; providing both is invalid.
+Tkinter cannot change a widget's master; borrowed widgets must respect
+backend restrictions. Qt, Tkinter and Kivy have different native API surfaces.
+Only use widgets compatible with the selected renderer.
 
-**Backend differences matter:** Qt borrowing restores the previous parent; Kivy borrowing restores parent and relevant layout hints; borrowing an existing Tkinter widget is unsupported because its master is fixed at creation.
-
-## What about updates and events?
-
-The lower-level native contract supports an `update(widget, changed, removed)` callback and `bind_event(widget, event, slot)` returning cleanup. PSX can update the existing control instead of rebuilding it. Layout and measurement still matter; geometry bridges handle common widgets, while advanced cases may require an explicit `sfle_port`.
-
-## When should I write an adapter instead?
-
-Use [Renderer adapters](/extensibility/renderer-adapters) if `Native` cannot express the native lifecycle you need. Otherwise prefer reusing the existing toolkit widget. See [Build a native chart](/extensibility/build-a-native-chart) and [Embed a web browser](/extensibility/embed-a-web-browser).
+For specialized lifecycle control, use the low-level `NativeWidget`
+declaration and its `update`, `bind_event` and `sfle_port` callbacks.
+See [Native component reference](/reference/ui/components/native).

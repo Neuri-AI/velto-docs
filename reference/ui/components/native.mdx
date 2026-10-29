@@ -1,16 +1,84 @@
 ---
 title: Native
-description: Integrate a native widget through the public adapter contract.
+description: Embed Qt, Tkinter, Kivy or third-party widgets with explicit reactive props.
 ---
 
+`Native` mounts a toolkit widget inside PSX Markup. Its geometry is calculated
+by Cinnamon. The widget belongs to the renderer chosen for the application.
+
+## Plain native widget (no adapter needed)
+
 ```python
-from velto.ui import Native
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from velto.ui import psx
 ```
 
-`Native(widget, props=None, signals=None, renderer=None, sfle_port=None, key=None, ref=None, **attrs)` embeds a native widget or adapter target. It is a renderer integration point, not a portable child container.
-
-```python
-Native(widget=my_widget, signals={"changed": on_changed})
+```jsx
+<Native widget={QWebEngineView} width="100%" height="100vh" key="browser" />
 ```
 
-Use only with a renderer that documents the target widget. See [native widget integration](/extensibility/native-widget-integration).
+## Public properties
+
+| Attribute | Purpose |
+| --- | --- |
+| `widget` | Native widget class, callable factory or already-created instance |
+| `args` | Positional constructor arguments |
+| `kwargs` | Named constructor arguments |
+| `props` | Reactive data mapping; **no automatic setter naming** |
+| `signals` | Native event signal mapping |
+| `key` | Stable reconciliation identity |
+| `ref` | Access to mounted native widget |
+| `width`, `height`, CSS | Cinnamon-owned geometry and appearance |
+
+`kwargs` and `args` are constructor-only. When constructor values change,
+the native widget is remounted; `props` updates keep the instance.
+
+## Controlled custom widget
+
+```python
+from PySide6.QtCore import QUrl
+from PySide6.QtWebEngineWidgets import QWebEngineView
+
+class Browser(QWebEngineView):
+    def update_props(self, props, changed):
+        if "url" in changed:
+            self.setUrl(QUrl(props["url"]))
+```
+
+```jsx
+<Native widget={Browser} props={{"url": current_url}}
+        width="100%" height="100vh" key="browser" />
+```
+
+`changed` is a `frozenset[str]` containing the names of new or changed
+properties. On the first mount it contains all keys. Unchanged renders do
+not invoke the handler.
+
+## Third-party widget without subclassing
+
+```python
+import pyqtgraph as pg
+from velto.ui import native_adapter
+
+@native_adapter(pg.PlotWidget)
+def update_chart(widget, props, changed):
+    if not hasattr(widget, "_curve"):
+        widget._curve = widget.plot()
+    if "data" in changed:
+        widget._curve.setData(props["data"])
+```
+
+```jsx
+<Native widget={pg.PlotWidget}
+        kwargs={{"background": "#151515"}}
+        props={{"data": cpu_values}}
+        width="100%" height="400px" key="chart" />
+```
+
+If both are present, an instance's `update_props` wins over a registered
+adapter. In-place mutation of arrays is not observed; supply a fresh object.
+Removed reactive property keys currently raise an error: pass an explicit
+reset value when needed.
+
+See [Native widget integration](/extensibility/native-widget-integration) for
+the lifecycle and backend constraints.

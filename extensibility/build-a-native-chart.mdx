@@ -1,75 +1,84 @@
 ---
 title: "Build a native chart"
-description: "Follow a PySide6 and PyQtGraph example through Native and PSX Markup."
+description: "Integrate PyQtGraph and update data reactively without remounting."
 ---
 
-In this tutorial we want a line chart inside a Velto application. **PyQtGraph already knows how to draw charts**, so we will reuse it instead of building a chart engine or a custom adapter.
+PyQtGraph supplies the chart renderer. Velto supplies PSX Markup,
+Cinnamon layout, and the reactive `Native` contract.
 
-## 1. Install compatible dependencies
-
-In a fresh virtual environment, install Velto with its PySide6 backend and PyQtGraph:
+## 1. Install PySide6 and PyQtGraph
 
 ```bash
-python -m pip install "velto[pyside6]" pyqtgraph
+python -m pip install "velto[pyside6]" pyqtgraph numpy
 ```
 
-> **Compatibility checkpoint:** Ensure PyQtGraph selects the same Qt binding as your Velto renderer. Package availability and versions must be verified in the actual environment.
+Ensure PyQtGraph selects the same Qt binding as Velto.
 
-## 2. Write `main.py`
+## 2. Register a reusable chart adapter
 
 ```python
-import sys
 import pyqtgraph as pg
+from velto.ui import native_adapter
 
-from velto import VeltoContext
-from velto.ui import psx
+@native_adapter(pg.PlotWidget)
+def update_chart(widget, props, changed):
+    if not hasattr(widget, "_curve"):
+        widget._curve = widget.plot(pen=pg.mkPen("#8B5CF6", width=2))
 
+    if "data" in changed:
+        widget._curve.setData(props["data"])
+```
 
-class SineChart(pg.PlotWidget):
+This adapter is registered once. It receives the widget instance,
+all reactive props and a `frozenset` containing only changed keys.
+
+## 3. Use the chart from PSX Markup
+
+```jsx
+<Native
+    widget={pg.PlotWidget}
+    kwargs={{"background": "#151515"}}
+    props={{"data": cpu_values}}
+    width="100%"
+    height="400px"
+    key="chart"
+/>
+```
+
+`kwargs` is constructor-only configuration. `props` is reactive:
+for example, `cpu_values` may be supplied by `use_state`. Replacing
+`cpu_values` with a new array causes `changed` to include `data`.
+
+No `PlotWidget` is recreated when data changes. The adapter keeps one
+curve and calls `setData()` only for changed `data` values.
+
+## 4. Using a class you own
+
+You can skip the decorator by providing the same contract in your class:
+
+```python
+class Chart(pg.PlotWidget):
     def __init__(self):
         super().__init__()
-        self.setTitle("Measurements")
-        self.showGrid(x=True, y=True)
-        self.plot([2, 5, 3, 7, 4], pen=pg.mkPen(width=2))
+        self.curve = self.plot()
 
-
-class Demo(VeltoContext):
-    def render(self):
-        return psx("""
-            <Flex direction="column" width="100%" height="100%" gap="12">
-                <Text>Live dashboard</Text>
-                <Native widget={SineChart} />
-            </Flex>
-        """)
-
-
-if __name__ == "__main__":
-    sys.exit(Demo().run())
+    def update_props(self, props, changed):
+        if "data" in changed:
+            self.curve.setData(props["data"])
 ```
 
-## 3. Run and inspect
-
-```bash
-velto start
+```jsx
+<Native widget={Chart}
+        props={{"data": cpu_values}}
+        width="100%" height="400px" />
 ```
 
-**Expected result, if the active facade and compiler support this class reference:** a native window with a heading and a plotted line. **Verification status:** this example is assembled from the documented `VeltoContext`, PSX and `Native` patterns; it has **not** been executed against the checked-out `develop` source in this documentation review. Verify class-expression resolution, widget sizing and the chosen renderer before publishing it as a certified example.
+## 5. Performance and constraints
 
-## 4. Understand the journey
+Reactive updates execute in the renderer's UI thread. `changed` avoids
+redundant native operations; supply a **new** array or object when its content
+changes because in-place mutations are not detected. The graph's width and
+height belong to Cinnamon and do not call arbitrary widget setters.
 
-1. PSX parses `<Native widget={SineChart} />`.
-2. The expression resolves the Python class `SineChart`.
-3. The renderer's native integration creates the Qt widget.
-4. The layout system gives it geometry.
-5. When the node is removed, PSX releases the **owned** instance.
-
-## 5. Common problems
-
-| Symptom | Check |
-| --- | --- |
-| `SineChart` not found | Python expression scope / compilation mode |
-| No compatible native adapter | Active renderer is PySide6 and supports `Native` |
-| Blank or clipped chart | Layout sizing and widget geometry |
-| Binding mismatch | PyQtGraph and Velto use the same Qt binding |
-
-A chart library packaged for reuse is covered by [Publishing your extension](/extensibility/publishing-your-extension).
+Test using the actual native renderer on your OS; conceptual examples
+do not constitute offscreen graphical certification.
